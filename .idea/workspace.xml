@@ -16,8 +16,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/scratch_pad.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="153">
-              <caret line="25" column="56" selection-start-line="25" selection-start-column="56" selection-end-line="25" selection-end-column="56" />
+            <state relative-caret-position="187">
+              <caret line="27" column="26" lean-forward="true" selection-start-line="27" selection-start-column="26" selection-end-line="27" selection-end-column="26" />
             </state>
           </provider>
         </entry>
@@ -207,7 +207,14 @@
       <option name="project" value="LOCAL" />
       <updated>1559836242081</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Added more stolen code, in attempt to make shape file a rastor image. Contains some bugs.">
+      <created>1559926786347</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1559926786347</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="ToolWindowManager">
@@ -278,7 +285,8 @@
     <MESSAGE value="Generated Phase 1 branch and created coding scratch pad" />
     <MESSAGE value="Chnaged file name to scratch_pad" />
     <MESSAGE value="Added source code formatting and Description" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added source code formatting and Description" />
+    <MESSAGE value="Added more stolen code, in attempt to make shape file a rastor image. Contains some bugs." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added more stolen code, in attempt to make shape file a rastor image. Contains some bugs." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -377,8 +385,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/scratch_pad.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="153">
-          <caret line="25" column="56" selection-start-line="25" selection-start-column="56" selection-end-line="25" selection-end-column="56" />
+        <state relative-caret-position="187">
+          <caret line="27" column="26" lean-forward="true" selection-start-line="27" selection-start-column="26" selection-end-line="27" selection-end-column="26" />
         </state>
       </provider>
     </entry>
