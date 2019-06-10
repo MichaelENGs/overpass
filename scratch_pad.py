@@ -39,7 +39,6 @@ if dataset is None:
 # Output.SetProjection(Output_mask.GetProjectionRef())
 # Output.SetGeoTransform(Output_mask.GetGeoTransform())
 
-
 # This method was found in the ogr doumentation at : https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html
 pixel_size = 25  # huristic value.... yes I made it up
 x_res = int((x_max - x_min) / pixel_size)  # set resolution on x axis
