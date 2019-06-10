@@ -9,7 +9,8 @@
 # ERSI Shapefile white pages: https://www.esri.com/library/whitepapers/pdfs/shapefile.pdf
 
 from osgeo import ogr
-import gdal, os, subprocess
+import gdal, os, subprocess, numpy
+from PIL import Image
 
 gdal.AllRegister()
 
@@ -43,15 +44,23 @@ if x_res == 0:
 y_res = int((y_max - y_min) / pixel_size)  # set resolution on y axis
 if y_res == 0:
     y_res = 1 # Set to 1 for gdal create parameters
-# driver.Create(filename,xval,yval,bands,datatype)
-# Output = gdal.GetDriverByName('GTiff').Create('ugly_mask.tif', x_res, y_res, 1, gdal.GDT_Byte)
-Output = gdal.GetDriverByName('GTiff').Create('ugly_mask.tif', 1000, 1000, 1, gdal.GDT_Byte)
+# driver.Create(filename,xval,yval,bands,datatype) yval can not exceed 4000
+Output = gdal.GetDriverByName('GTiff').Create('ugly_mask.tif', x_res, y_res, 1, gdal.GDT_Byte)
+# x_res_prj = refimage.RasterXSize
+# y_res_prj = refimage.RasterYSize
+# Output = gdal.GetDriverByName('GTiff').Create('ugly_mask.tif', x_res_prj, y_res_prj, 1, gdal.GDT_Byte)
+refimage = None # Close the tiff file
 Output.SetGeoTransform((x_min,pixel_size,0,y_max,pixel_size,0))
 Band = Output.GetRasterBand(1)
 Band.SetNoDataValue(0)
-gdal.RasterizeLayer(Output, [1], dataset_layer, burn_values=[1])
+gdal.RasterizeLayer(Output, [1], dataset_layer, burn_values=[0])
 subprocess.call("gdaladdo --config COMPRESS_OVERVIEW DEFLATE " + "ugly_mask.tif" + " 2 4 8 16 32 64", shell=True)
 print("End stolen code")
-
+with Image.open("ugly_mask.tif") as fp:
+    image_pixel_array = numpy.asarray(fp)
+    # sanity check
+    # if not image_pixel_array.size < 2:
+    #     assert ValueError("Image mask not generated, dimensions too small")
+    print(fp)
 # # Note to self:
 # This code will run however the resulting tif does not display as expected
