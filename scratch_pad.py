@@ -55,6 +55,7 @@ Band = Output.GetRasterBand(1)
 Band.SetNoDataValue(0)
 gdal.RasterizeLayer(Output, [1], dataset_layer, burn_values=[0])
 subprocess.call("gdaladdo --config COMPRESS_OVERVIEW DEFLATE " + "ugly_mask.tif" + " 2 4 8 16 32 64", shell=True)
+Output.FlushCache()
 print("End stolen code")
 with Image.open("ugly_mask.tif") as fp:
     image_pixel_array = numpy.asarray(fp)
@@ -64,3 +65,7 @@ with Image.open("ugly_mask.tif") as fp:
     print(fp)
 # # Note to self:
 # This code will run however the resulting tif does not display as expected
+
+with Image.open("C:\\Users\\msalzarulo\\Documents\\skynetV2\\Pre Cyclone Idai\\0023320.tif") as fp:
+    myarray = numpy.asarray(fp)
+    print("stop here")
