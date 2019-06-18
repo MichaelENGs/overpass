@@ -17,7 +17,39 @@
 #  - Find length of the roads and add sum to csv file
 
 import xml.etree.ElementTree as ET
-import csv, os
+import csv, os, overpy
+
+
+def Helpfunc(verbose=False):
+    if verbose:
+        print("# Intended to be used as a command line tool. This script will convert xml files to csv files and contain a \
+        feature to sort the data within the file. This script is tested for use on open street map (osm) xml files from \
+        the overpass api.")
+        print("Arguments:\n")
+        print("[extent](s w n e) Enter the extent of the boundary to be queried with the latitude and longitude \
+        corresponding to south west north east in that order. The extent can also be defined by name such as a town, \
+        city, or country")
+    if not verbose:
+        print("Input arguments:\n[extent]([s][w][n][e]) | (area)")
+
+
+def PrimaryQ(extent="King of Prussia"):
+    Qstring = """[timeout:25][out:xml];
+    (
+    area[name="%s"];
+    way(area)[highway][name];
+    );
+    out body;
+    >;
+    out skel qt;""" % (extent)
+    api = overpy.Overpass()
+    result = api.query(Qstring)
+    print(result)
+
+    # Qstring = "node(50.745,7.17,50.75,7.18);out;"
+    #     # api = overpy.Overpass()
+    #     # result = api.query(Qstring)
+    print(len(result.nodes))
 
 
 def Smart_unpack(list_of_tuple):
@@ -113,11 +145,16 @@ def Filter_csv(path):  # This function will need to be refined based on constrai
 
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
-    import sys
+    ## Tested example for version 1.0
+    # import sys
+    #
+    # # Add option handeling and help function here.
+    #
+    # print(sys.argv[1])  # Echo the file path to the user
+    # Xml2csv(sys.argv[1])
+    #
+    # # Xml2csv("C:\\Users\\msalzarulo\\Documents\\skynetV2\\xml2csv\\")
 
-    # Add option handeling and help function here.
-
-    print(sys.argv[1])  # Echo the file path to the user
-    Xml2csv(sys.argv[1])
-
-    # Xml2csv("C:\\Users\\msalzarulo\\Documents\\skynetV2\\xml2csv\\")
+    # Testing example for version 1.1
+    Helpfunc()
+    PrimaryQ()
