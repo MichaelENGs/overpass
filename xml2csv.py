@@ -123,6 +123,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
         header = ["Road #/id", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
         writer.writerow(header)  # Write header to file
+        writer.writerow("extent: " + extent) # Write the extent to the file
         Find_mid_points(result.ways, writer)  # Recursive function to write desired data
     print("File Generated in %s" % os.getcwd())  # Message to user
 
