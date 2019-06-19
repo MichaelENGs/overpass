@@ -27,29 +27,104 @@ def Helpfunc(verbose=False):
         the overpass api.")
         print("Arguments:\n")
         print("[extent](s w n e) Enter the extent of the boundary to be queried with the latitude and longitude \
-        corresponding to south west north east in that order. The extent can also be defined by name such as a town, \
-        city, or country")
+        corresponding to south west north east in that order.")
     if not verbose:
         print("Input arguments:\n[extent]([s][w][n][e]) | (area)")
 
 
-def PrimaryQ(extent="King of Prussia"):
-    Qstring = """[timeout:25][out:xml];
+def Find_mid_lat_lon(node_list):
+    """
+    This function will iterate over the associated nodes of each way and calculate the one dimensional mid point of
+    lat and lon
+
+    :param node_list: List of associated nodes
+    :return:
+    """
+
+    min_lat = None
+    max_lat = None
+    min_lon = None
+    max_lon = None
+    for x in node_list:  # iterate ove the list and find the desired values
+        if min_lat is None:
+            min_lat = x.lat
+        elif min_lat > x.lat:
+            min_lat = x.lat
+
+        if max_lat is None:
+            max_lat = x.lat
+        elif max_lat < x.lat:
+            max_lat = x.lat
+
+        if min_lon is None:
+            min_lon = x.lon
+        elif min_lon > x.lon:
+            min_lon = x.lon
+
+        if max_lon is None:
+            max_lon = x.lon
+        elif max_lon < x.lon:
+            max_lon = x.lon
+
+    midlat = ((max_lat - min_lat) / 2) + min_lat  # Mid point calculation for lat
+    midlon = ((max_lon - min_lon) / 2) + min_lon  # Mid point calculation for lon
+
+    return [midlat, midlon]
+
+
+def Find_mid_points(query_result, csvobj, write=True):
+    """
+    This function is dependent on the find_mid_lat_long function. This is a recursive function to iterate through the
+    list of query results finding the mid points of ways which encompass the road. See open street map (osm) documentation
+    for further break down of nodes and ways. Found here: https://wiki.openstreetmap.org/wiki/Main_Page
+
+    :param query_result: List of desired data to be parsed
+    :param csvobj: csv File pointer
+    :param write: Kwarg tells function to write to file, or not
+    :return:
+    """
+
+    way = query_result[0]  # Split topmost result
+    way_id = str(way.id)  # Store way id as string
+    if "name" not in way.tags.keys(): way.tags["name"] = "Not named"  # Check for name tag if none is present create one
+    road_name = way.tags["name"]  # Store road name
+    mid_lat, mid_lon = Find_mid_lat_lon(way.nodes)  # Calculate midpoints of lat and lon
+    val_list = [way_id + " " + road_name, mid_lat, mid_lon]  # Store values in list with desired formatting
+    if write:
+        csvobj.writerow(val_list)  # Write list to csv file
+        if len(query_result) > 1:  # Check if there are more results
+            return Find_mid_points(query_result[1:], csvobj)
+        else:
+            return
+    else:
+        return val_list
+
+
+def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
+    """
+    This is the method of generating an overpass file with a user defined extent. This function will query the overpass
+    api. The results of the query will be parsed and a resulting csv file will be generated.
+
+    :param extent: User defined lat and long in the form of: south west north east
+    :return:
+    """
+
+    Qstring = """[out:xml][bbox:%s];
     (
-    area[name="%s"];
-    way(area)[highway][name];
+      way[highway];
     );
     out body;
-    >;
+    (._;>;);
     out skel qt;""" % (extent)
-    api = overpy.Overpass()
-    result = api.query(Qstring)
-    print(result)
-
-    # Qstring = "node(50.745,7.17,50.75,7.18);out;"
-    #     # api = overpy.Overpass()
-    #     # result = api.query(Qstring)
-    print(len(result.nodes))
+    api = overpy.Overpass()  # Generate an overpass query object
+    result = api.query(Qstring)  # Method to query api results in parsed data
+    with open("Query Result.csv", "w+") as csvfp:  # Open file with handeler
+        print("Generating csv file ...")  # Message to user
+        header = ["Road #/id", "Lat", "Lon"]  # Create header of file
+        writer = csv.writer(csvfp)  # Create file writter object
+        writer.writerow(header)  # Write header to file
+        Find_mid_points(result.ways, writer)  # Recursive function to write desired data
+    print("File Generated in %s" % os.getcwd())  # Message to user
 
 
 def Smart_unpack(list_of_tuple):
@@ -157,4 +232,4 @@ if __name__ == "__main__":  # The function calls in this section will be execute
 
     # Testing example for version 1.1
     Helpfunc()
-    PrimaryQ()
+    PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
