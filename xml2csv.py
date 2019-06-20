@@ -17,19 +17,26 @@
 #  - Find length of the roads and add sum to csv file
 
 import xml.etree.ElementTree as ET
-import csv, os, overpy
+import csv, os, overpy, sys
 
 
 def Helpfunc(verbose=False):
+    """
+    This function is the help option to explain to the user how to use the program. The message can be viewed in a
+    verbose form if specified by the user.
+
+    :param verbose: Bool value defined at program run time
+    :return:
+    """
+
     if verbose:
-        print("# Intended to be used as a command line tool. This script will convert xml files to csv files and contain a \
-        feature to sort the data within the file. This script is tested for use on open street map (osm) xml files from \
-        the overpass api.")
+        print("# Intended to be used as a command line tool. This script will query overpass api with a user defined \
+               extent and output a csv file in the form of Road,Node,Lat,Lon.")
         print("Arguments:\n")
-        print("[extent](s w n e) Enter the extent of the boundary to be queried with the latitude and longitude \
+        print("extent(s w n e) Enter the extent of the boundary to be queried with the latitude and longitude \
         corresponding to south west north east in that order.")
     if not verbose:
-        print("Input arguments:\n[extent]([s][w][n][e]) | (area)")
+        print("Input arguments:\nextent([s][w][n][e])")
 
 
 def Find_mid_lat_lon(node_list):
@@ -89,15 +96,16 @@ def Find_mid_points(query_result, csvobj, write=True):
     if "name" not in way.tags.keys(): way.tags["name"] = "Not named"  # Check for name tag if none is present create one
     road_name = way.tags["name"]  # Store road name
     mid_lat, mid_lon = Find_mid_lat_lon(way.nodes)  # Calculate midpoints of lat and lon
-    val_list = [way_id + " " + road_name, mid_lat, mid_lon]  # Store values in list with desired formatting
-    if write:
-        csvobj.writerow(val_list)  # Write list to csv file
-        if len(query_result) > 1:  # Check if there are more results
-            return Find_mid_points(query_result[1:], csvobj)
+    for node in way.nodes:
+        val_list = [way_id + " " + road_name, node.id, mid_lat, mid_lon]  # Store values in list with desired formatting
+        if write:
+            csvobj.writerow(val_list)  # Write list to csv file
         else:
-            return
+            return val_list
+    if len(query_result) > 1:  # Check if there are more results
+        return Find_mid_points(query_result[1:], csvobj)
     else:
-        return val_list
+        return
 
 
 def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
@@ -109,6 +117,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     :return:
     """
 
+    print("Sending query to overpass ... ") # Message to user
     Qstring = """[out:xml][bbox:%s];
     (
       way[highway];
@@ -118,12 +127,14 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     out skel qt;""" % (extent)
     api = overpy.Overpass()  # Generate an overpass query object
     result = api.query(Qstring)  # Method to query api results in parsed data
+    print("Query successful") # Message to user
+
     with open("Query Result.csv", "w+") as csvfp:  # Open file with handeler
         print("Generating csv file ...")  # Message to user
-        header = ["Road #/id", "Lat", "Lon"]  # Create header of file
+        header = ["Road #/id","Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
         writer.writerow(header)  # Write header to file
-        writer.writerow("extent: " + extent) # Write the extent to the file
+        writer.writerow(["extent"] + extent.split()) # Write the extent to the file
         Find_mid_points(result.ways, writer)  # Recursive function to write desired data
     print("File Generated in %s" % os.getcwd())  # Message to user
 
@@ -232,5 +243,9 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     # # Xml2csv("C:\\Users\\msalzarulo\\Documents\\skynetV2\\xml2csv\\")
 
     # Testing example for version 1.1
-    Helpfunc()
+    # if " -h " in sys.argv or " --help " in sys.argv:
+    #     if " -v " in sys.argv or " --verbose " in sys.argv:
+    #         Helpfunc()
+    #     else:
+    #         Helpfunc(True)
     PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
