@@ -300,18 +300,30 @@ def Filter_csv(version=1, min_distance=None):
                             continue  # Skip rest of loop
                         if count == 2 and count < 4:
                             Header_write(meta_data, Child_Write)  # Write meta data to file
+                            previous_meta = mdata[:-2]
                             previous_coordinates = [math.radians(float(x)) for x in
                                                     mdata[-2:]]  # Unpack and convert lat and lon
                             del count  # Delete count
                             continue  # Skip rest of loop
 
                     current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
-                    assert previous_coordinates != current_coordinates,"Distance cacluation can not be performed over the same point"  # Sanity check make sure same points were not stored
+                    if previous_coordinates == current_coordinates: # Check for duplicate co-ordinates
+                        if mdata[1] != previous_meta[-1]: # Check for separate node ids
+                            raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
+                        else:
+                            continue # Skip rest of loop
                     distance = Calculate_distance(previous_coordinates,
                                                   current_coordinates)  # Call distance calculation function
+
+                    pretty_list = [x for x in mdata]  # Copy list values
+                    pretty_list.append(distance)  # Append to list
                     if distance > min_distance:  # Check if calculated distance exceeds minimum distance
-                        Child_Write([mdata, distance])  # Write data to csv file
+                        Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
+                        previous_meta = mdata[:-2] # Save meta data
                         previous_coordinates = current_coordinates  # Set values for next loop
+                    previous_loop = pretty_list # Save values for next loop
+                if previous_loop[1] != previous_meta[1]: # Check if last values are not written to file
+                    Child_Write.writerow(pretty_list) # Write to file
                 return
 
             elif version==2:
