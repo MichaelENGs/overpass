@@ -39,6 +39,19 @@ def Helpfunc(verbose=False):
         print("Input arguments:\nextent([s][w][n][e])")
 
 
+def Header_write(header,csvobj):
+    """
+    This function will write the metadata information to the csv file header.
+
+    :param header: List containing meta data and header data
+    :param csvobj: Object to write to.
+    :return:
+    """
+
+    for row in header:
+        csvobj.writerow(row)
+
+
 def Find_mid_lat_lon(node_list):
     """
     This function will iterate over the associated nodes of each way and calculate the one dimensional mid point of
@@ -117,7 +130,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     :return:
     """
 
-    print("Sending query to overpass ... ") # Message to user
+    print("Sending query to overpass ... ")  # Message to user
     Qstring = """[out:xml][bbox:%s];
     (
       way[highway];
@@ -127,14 +140,14 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     out skel qt;""" % (extent)
     api = overpy.Overpass()  # Generate an overpass query object
     result = api.query(Qstring)  # Method to query api results in parsed data
-    print("Query successful") # Message to user
+    print("Query successful")  # Message to user
 
     with open("Query Result.csv", "w+") as csvfp:  # Open file with handeler
         print("Generating csv file ...")  # Message to user
-        header = ["Road #/id","Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
+        header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
-        writer.writerow(header)  # Write header to file
-        writer.writerow(["extent"] + extent.split()) # Write the extent to the file
+        meta_data = [["extent"]+extent.split(),header] # Store meta data as list
+        Header_write(meta_data,writer) # Write meta data to file
         Find_mid_points(result.ways, writer)  # Recursive function to write desired data
     print("File Generated in %s" % os.getcwd())  # Message to user
 
@@ -216,19 +229,42 @@ def Xml2csv(path, smart=True):
     return
 
 
-def Filter_csv(path):  # This function will need to be refined based on constraints from Eric Purohit
-    """
-    This function will filter csv data in alphabetical order.
-    :param path:
-    :return:
-    """
-    for root, _, dir in os.walk(path):  # parse folder for csv files
-        files = [os.path.join(root, string) for string in dir if dir[-4:] == ".csv"]
-    for fp in files:
-        with open(fp, "r") as fp:  # open csv file
-            data = fp.read()
-            data = data.sort()  # sort data
-            print('{1}'.format(data))  # return sorted data to stdout
+def Filter_csv(version=1, min_distance=None):
+    assert TypeError(type(version) == int, "version must be an integer either 1 or 2")
+    assert ValueError(version == 2 or version == 1, "version must be either 1 or 2")
+
+    print("Beginning filter process:")
+    if min_distance is None:
+        min_distance = input("Please specify minimum distance")
+    if version == 1:
+        print("Filter process 1")
+        with open("Query Result.csv", "r") as Master_List:
+            with open("Amended Results.csv", "w+") as Child_List:
+                Master_Read = csv.reader(Master_List)
+                Child_Write = csv.writer(Child_List)
+                previous_coordinates = 0
+                count = 0
+                meta_data =[]
+                for mdata in Master_Read:
+                    if count < 2:
+                        if count == 1:
+                            mdata = mdata.append("Distance from last point")
+                        meta_data.append(mdata)
+                        count += 1
+                    if count == 2 and count < 4:
+                        Header_write(meta_data, Child_Write)
+                        previous_coordinates = mdata[-2:]
+                        del count
+                        continue
+                    current_coordinates = mdata[-2:]
+                    assert ValueError(previous_coordinates != current_coordinates,
+                                      "Distance cacluation can not be performed over the same point")
+                    # distance = Calculate_distance(previous_coordinates,current_coordinates)
+                    # if distance > min_distance:
+                    #   Child_Write([mdata,distance])
+        return
+    else:
+        return
 
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
@@ -248,4 +284,5 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     #         Helpfunc()
     #     else:
     #         Helpfunc(True)
-    PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
+    # PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
+    Filter_csv(min_distance=0)
