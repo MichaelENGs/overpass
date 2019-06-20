@@ -17,7 +17,7 @@
 #  - Find length of the roads and add sum to csv file
 
 import xml.etree.ElementTree as ET
-import csv, os, overpy, sys
+import csv, os, overpy, sys, math
 
 
 def Helpfunc(verbose=False):
@@ -39,7 +39,7 @@ def Helpfunc(verbose=False):
         print("Input arguments:\nextent([s][w][n][e])")
 
 
-def Header_write(header,csvobj):
+def Header_write(header, csvobj):
     """
     This function will write the metadata information to the csv file header.
 
@@ -146,8 +146,8 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
         print("Generating csv file ...")  # Message to user
         header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
-        meta_data = [["extent"]+extent.split(),header] # Store meta data as list
-        Header_write(meta_data,writer) # Write meta data to file
+        meta_data = [["extent"] + extent.split(), header]  # Store meta data as list
+        Header_write(meta_data, writer)  # Write meta data to file
         Find_mid_points(result.ways, writer)  # Recursive function to write desired data
     print("File Generated in %s" % os.getcwd())  # Message to user
 
@@ -229,6 +229,24 @@ def Xml2csv(path, smart=True):
     return
 
 
+def Calculate_distance(prev_coords, cur_coords):
+    radius_of_earth = 6, 371  # mean value in km
+    # long conversion to km 111.2 km/1 deg lon
+    # lat conversion to km 111.2km * cos(lat) / 1 deg lat
+
+    previous_lat, previous_lon = prev_coords
+    current_lat, current_lon = cur_coords
+
+    # Haversine formula
+    square_of_chord = math.sin(abs(current_lat - previous_lat) / 2) ** 2 + \
+                      math.cos(current_lat) *\
+                      math.cos(previous_lat) *\
+                      math.sin(abs(current_lon - previous_lon) / 2) ** 2
+    angular_distance = 2 * math.atan2(math.sqrt(square_of_chord)), math.sqrt(1 - square_of_chord)
+    distance_between_points = radius_of_earth * angular_distance
+    return distance_between_points
+
+
 def Filter_csv(version=1, min_distance=None):
     assert TypeError(type(version) == int, "version must be an integer either 1 or 2")
     assert ValueError(version == 2 or version == 1, "version must be either 1 or 2")
@@ -238,30 +256,38 @@ def Filter_csv(version=1, min_distance=None):
         min_distance = input("Please specify minimum distance")
     if version == 1:
         print("Filter process 1")
-        with open("Query Result.csv", "r") as Master_List:
+        with open("Query Result.csv", "r", newline='') as Master_List:
             with open("Amended Results.csv", "w+") as Child_List:
                 Master_Read = csv.reader(Master_List)
                 Child_Write = csv.writer(Child_List)
+
                 previous_coordinates = 0
                 count = 0
-                meta_data =[]
+                meta_data = []
                 for mdata in Master_Read:
-                    if count < 2:
-                        if count == 1:
-                            mdata = mdata.append("Distance from last point")
-                        meta_data.append(mdata)
-                        count += 1
-                    if count == 2 and count < 4:
-                        Header_write(meta_data, Child_Write)
-                        previous_coordinates = mdata[-2:]
-                        del count
+                    if mdata == []:
                         continue
+                    if "count" in dir():
+                        if count < 2:
+                            if count == 1:
+                                mdata.append("Distance from last point")
+                            assert TypeError(mdata is not None, "Broken master file data")
+                            meta_data.append(mdata)
+                            count += 1
+                            continue
+                        if count == 2 and count < 4:
+                            Header_write(meta_data, Child_Write)
+                            previous_coordinates = [math.radians(float(x)) for x in mdata[-2:]]
+                            del count
+                            continue
+
                     current_coordinates = mdata[-2:]
                     assert ValueError(previous_coordinates != current_coordinates,
                                       "Distance cacluation can not be performed over the same point")
-                    # distance = Calculate_distance(previous_coordinates,current_coordinates)
-                    # if distance > min_distance:
-                    #   Child_Write([mdata,distance])
+                    distance = Calculate_distance(previous_coordinates,current_coordinates)
+                    if distance > min_distance:
+                      Child_Write([mdata,distance])
+                      previous_coordinates = current_coordinates
         return
     else:
         return
