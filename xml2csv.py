@@ -229,18 +229,24 @@ def Xml2csv(path, smart=True):
     return
 
 
-def Calculate_distance(prev_coords, cur_coords):
-    radius_of_earth = 6, 371  # mean value in km
-    # long conversion to km 111.2 km/1 deg lon
-    # lat conversion to km 111.2km * cos(lat) / 1 deg lat
+def Calculate_distance(coords_set1, coords_set2):
+    """
+    This function expects two sets of co-ordinates. It will use the Haversine formula to calculate the distance
+    between the two points.
 
-    previous_lat, previous_lon = prev_coords
-    current_lat, current_lon = cur_coords
+    :param prev_coords:
+    :param cur_coords:
+    :return:
+    """
 
+    radius_of_earth = 6, 371  # mean value in km from: https://www.movable-type.co.uk/scripts/latlong.html
+    # Unpack co-ordinate sets
+    previous_lat, previous_lon = coords_set1
+    current_lat, current_lon = coords_set2
     # Haversine formula
     square_of_chord = math.sin(abs(current_lat - previous_lat) / 2) ** 2 + \
-                      math.cos(current_lat) *\
-                      math.cos(previous_lat) *\
+                      math.cos(current_lat) * \
+                      math.cos(previous_lat) * \
                       math.sin(abs(current_lon - previous_lon) / 2) ** 2
     angular_distance = 2 * math.atan2(math.sqrt(square_of_chord)), math.sqrt(1 - square_of_chord)
     distance_between_points = radius_of_earth * angular_distance
@@ -248,49 +254,71 @@ def Calculate_distance(prev_coords, cur_coords):
 
 
 def Filter_csv(version=1, min_distance=None):
+    """
+    This function expects no input parameters however they can be defined by the user. Two versions of this function
+    are available version 1 will execute by default.
+    Version 1:
+    A new csv file will be created in which the nodes that are less than the minimum distance will be removed from the
+    original query results.
+    Version 2:
+    A new csv file will be created in which a node will be generated at the minimum distance from the previous node.
+
+    :param version: Int specifying which filter to be run defaults to version 1
+    :param min_distance: Int must be defined at runtime: distance in km
+    :return:
+    """
+
+    # User data entry sanity check
     assert TypeError(type(version) == int, "version must be an integer either 1 or 2")
     assert ValueError(version == 2 or version == 1, "version must be either 1 or 2")
 
-    print("Beginning filter process:")
-    if min_distance is None:
-        min_distance = input("Please specify minimum distance")
-    if version == 1:
-        print("Filter process 1")
-        with open("Query Result.csv", "r", newline='') as Master_List:
-            with open("Amended Results.csv", "w+") as Child_List:
-                Master_Read = csv.reader(Master_List)
-                Child_Write = csv.writer(Child_List)
+    print("Beginning filter process:")  # Message to user
+    if min_distance is None:  # Check if minimum distance is defined
+        min_distance = input("Please specify minimum distance")  # Prompt user for entry
 
+    with open("Query Result.csv", "r", newline='') as Master_List:  # Open csv file from original query
+        with open("Amended Results.csv", "w+") as Child_List:  # Create or truncate csv file to write
+            Master_Read = csv.reader(Master_List)  # Create read object
+            Child_Write = csv.writer(Child_List)  # Create write object
+
+            if version == 1:  # Check version number
+                print("Filter process 1")  # Message to user
+                # Initialize data values
                 previous_coordinates = 0
                 count = 0
                 meta_data = []
                 for mdata in Master_Read:
-                    if mdata == []:
-                        continue
-                    if "count" in dir():
-                        if count < 2:
+                    if mdata == []:  # Check if anthing was read
+                        continue  # Skip loop
+                    if "count" in dir():  # Check if count is defined
+                        if count < 2:  # Check value of count
                             if count == 1:
-                                mdata.append("Distance from last point")
-                            assert TypeError(mdata is not None, "Broken master file data")
-                            meta_data.append(mdata)
-                            count += 1
-                            continue
+                                mdata.append("Distance from last point")  # Append new column to header
+                            assert TypeError(mdata is not None,
+                                             "Broken master file data")  # Sanity check writing None type to file will result in error
+                            meta_data.append(mdata)  # Add meta data to list
+                            count += 1  # Incriment counter
+                            continue  # Skip rest of loop
                         if count == 2 and count < 4:
-                            Header_write(meta_data, Child_Write)
-                            previous_coordinates = [math.radians(float(x)) for x in mdata[-2:]]
-                            del count
-                            continue
+                            Header_write(meta_data, Child_Write)  # Write meta data to file
+                            previous_coordinates = [math.radians(float(x)) for x in
+                                                    mdata[-2:]]  # Unpack and convert lat and lon
+                            del count  # Delete count
+                            continue  # Skip rest of loop
 
-                    current_coordinates = mdata[-2:]
+                    current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
                     assert ValueError(previous_coordinates != current_coordinates,
-                                      "Distance cacluation can not be performed over the same point")
-                    distance = Calculate_distance(previous_coordinates,current_coordinates)
-                    if distance > min_distance:
-                      Child_Write([mdata,distance])
-                      previous_coordinates = current_coordinates
-        return
-    else:
-        return
+                                      "Distance cacluation can not be performed over the same point")  # Sanity check make sure same points were not stored
+                    distance = Calculate_distance(previous_coordinates,
+                                                  current_coordinates)  # Call distance calculation function
+                    if distance > min_distance:  # Check if calculated distance exceeds minimum distance
+                        Child_Write([mdata, distance])  # Write data to csv file
+                        previous_coordinates = current_coordinates  # Set values for next loop
+                return
+            elif version==2:
+                print("Filter process 2")
+                # coordinates = Inverse_calc_distance()
+                return
 
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
