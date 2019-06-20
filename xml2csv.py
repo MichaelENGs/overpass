@@ -110,7 +110,7 @@ def Find_mid_points(query_result, csvobj, write=True):
     road_name = way.tags["name"]  # Store road name
     mid_lat, mid_lon = Find_mid_lat_lon(way.nodes)  # Calculate midpoints of lat and lon
     for node in way.nodes:
-        val_list = [way_id + " " + road_name, node.id, mid_lat, mid_lon]  # Store values in list with desired formatting
+        val_list = [way_id + " " + road_name, node.id, node.lat, node.lon]  # Store values in list with desired formatting
         if write:
             csvobj.writerow(val_list)  # Write list to csv file
         else:
@@ -239,7 +239,7 @@ def Calculate_distance(coords_set1, coords_set2):
     :return:
     """
 
-    radius_of_earth = 6, 371  # mean value in km from: https://www.movable-type.co.uk/scripts/latlong.html
+    radius_of_earth = 6371  # mean value in km from: https://www.movable-type.co.uk/scripts/latlong.html
     # Unpack co-ordinate sets
     previous_lat, previous_lon = coords_set1
     current_lat, current_lon = coords_set2
@@ -248,7 +248,7 @@ def Calculate_distance(coords_set1, coords_set2):
                       math.cos(current_lat) * \
                       math.cos(previous_lat) * \
                       math.sin(abs(current_lon - previous_lon) / 2) ** 2
-    angular_distance = 2 * math.atan2(math.sqrt(square_of_chord)), math.sqrt(1 - square_of_chord)
+    angular_distance = 2 * math.atan2(math.sqrt(square_of_chord), math.sqrt(1 - square_of_chord))
     distance_between_points = radius_of_earth * angular_distance
     return distance_between_points
 
@@ -269,8 +269,8 @@ def Filter_csv(version=1, min_distance=None):
     """
 
     # User data entry sanity check
-    assert TypeError(type(version) == int, "version must be an integer either 1 or 2")
-    assert ValueError(version == 2 or version == 1, "version must be either 1 or 2")
+    assert type(version) == int, "version must be an integer either 1 or 2"
+    assert version == 2 or version == 1, "version must be either 1 or 2"
 
     print("Beginning filter process:")  # Message to user
     if min_distance is None:  # Check if minimum distance is defined
@@ -294,8 +294,7 @@ def Filter_csv(version=1, min_distance=None):
                         if count < 2:  # Check value of count
                             if count == 1:
                                 mdata.append("Distance from last point")  # Append new column to header
-                            assert TypeError(mdata is not None,
-                                             "Broken master file data")  # Sanity check writing None type to file will result in error
+                            assert mdata is not None,"Broken master file data"  # Sanity check writing None type to file will result in error
                             meta_data.append(mdata)  # Add meta data to list
                             count += 1  # Incriment counter
                             continue  # Skip rest of loop
@@ -307,14 +306,14 @@ def Filter_csv(version=1, min_distance=None):
                             continue  # Skip rest of loop
 
                     current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
-                    assert ValueError(previous_coordinates != current_coordinates,
-                                      "Distance cacluation can not be performed over the same point")  # Sanity check make sure same points were not stored
+                    assert previous_coordinates != current_coordinates,"Distance cacluation can not be performed over the same point"  # Sanity check make sure same points were not stored
                     distance = Calculate_distance(previous_coordinates,
                                                   current_coordinates)  # Call distance calculation function
                     if distance > min_distance:  # Check if calculated distance exceeds minimum distance
                         Child_Write([mdata, distance])  # Write data to csv file
                         previous_coordinates = current_coordinates  # Set values for next loop
                 return
+
             elif version==2:
                 print("Filter process 2")
                 # coordinates = Inverse_calc_distance()
