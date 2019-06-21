@@ -277,7 +277,7 @@ def Filter_csv(version=1, min_distance=None):
         min_distance = input("Please specify minimum distance")  # Prompt user for entry
 
     with open("Query Result.csv", "r", newline='') as Master_List:  # Open csv file from original query
-        with open("Amended Results.csv", "w+") as Child_List:  # Create or truncate csv file to write
+        with open("Filtered Results version_%d.csv" % version, "w+") as Child_List:  # Create or truncate csv file to write
             Master_Read = csv.reader(Master_List)  # Create read object
             Child_Write = csv.writer(Child_List)  # Create write object
 
@@ -328,6 +328,8 @@ def Filter_csv(version=1, min_distance=None):
 
             elif version==2:
                 print("Filter process 2")
+
+
                 # coordinates = Inverse_calc_distance()
                 return
 
