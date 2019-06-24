@@ -15,6 +15,11 @@
 #  - Create user defined garbage collection for extraneous way points
 #  - Refined query of converted data (split roads that are divided by the bounds)
 #  - Find length of the roads and add sum to csv file
+#
+# Noted issues with current version:
+#  - Scrip expects 4 co-ordinates to identify bounding box
+#  - Original output file contains the way-node association
+#  - Calculate distance function does not follow the road ways it is a linear calculation
 
 import xml.etree.ElementTree as ET
 import csv, os, overpy, sys, math
@@ -253,6 +258,14 @@ def Calculate_distance(coords_set1, coords_set2):
     return distance_between_points
 
 
+def Calculate_coordinates(start_set,distance):
+    radius_of_earth = 6371  # mean value in km from: https://www.movable-type.co.uk/scripts/latlong.html
+
+    # square of chord= 
+    angular_distance = distance/radius_of_earth
+    return end_set
+
+
 def Filter_csv(version=1, min_distance=None):
     """
     This function expects no input parameters however they can be defined by the user. Two versions of this function
@@ -272,7 +285,7 @@ def Filter_csv(version=1, min_distance=None):
     assert type(version) == int, "version must be an integer either 1 or 2"
     assert version == 2 or version == 1, "version must be either 1 or 2"
 
-    print("Beginning filter process:")  # Message to user
+    print("Beginning filter process %d:" % version)  # Message to user
     if min_distance is None:  # Check if minimum distance is defined
         min_distance = input("Please specify minimum distance")  # Prompt user for entry
 
@@ -281,40 +294,42 @@ def Filter_csv(version=1, min_distance=None):
             Master_Read = csv.reader(Master_List)  # Create read object
             Child_Write = csv.writer(Child_List)  # Create write object
 
-            if version == 1:  # Check version number
-                print("Filter process 1")  # Message to user
-                # Initialize data values
-                previous_coordinates = 0
-                count = 0
-                meta_data = []
-                for mdata in Master_Read:
-                    if mdata == []:  # Check if anthing was read
-                        continue  # Skip loop
-                    if "count" in dir():  # Check if count is defined
-                        if count < 2:  # Check value of count
-                            if count == 1:
-                                mdata.append("Distance from last point")  # Append new column to header
-                            assert mdata is not None,"Broken master file data"  # Sanity check writing None type to file will result in error
-                            meta_data.append(mdata)  # Add meta data to list
-                            count += 1  # Incriment counter
-                            continue  # Skip rest of loop
-                        if count == 2 and count < 4:
-                            Header_write(meta_data, Child_Write)  # Write meta data to file
-                            previous_meta = mdata[:-2]
-                            previous_coordinates = [math.radians(float(x)) for x in
-                                                    mdata[-2:]]  # Unpack and convert lat and lon
-                            del count  # Delete count
-                            continue  # Skip rest of loop
+            previous_coordinates = 0
+            count = 0
+            meta_data = []
+            for mdata in Master_Read:
+                if mdata == []:  # Check if anthing was read
+                    continue  # Skip loop
 
-                    current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
-                    if previous_coordinates == current_coordinates: # Check for duplicate co-ordinates
-                        if mdata[1] != previous_meta[-1]: # Check for separate node ids
-                            raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
-                        else:
-                            continue # Skip rest of loop
+                # Read meta data and write to new file
+                if "count" in dir():  # Check if count is defined
+                    if count < 2:  # Check value of count
+                        if count == 1:
+                            mdata.append("Distance from last point")  # Append new column to header
+                        assert mdata is not None,"Broken master file data"  # Sanity check writing None type to file will result in error
+                        meta_data.append(mdata)  # Add meta data to list
+                        count += 1  # Incriment counter
+                        continue  # Skip rest of loop
+                    if count == 2 and count < 4:
+                        Header_write(meta_data, Child_Write)  # Write meta data to file
+                        previous_meta = mdata[:-2]
+                        previous_coordinates = [math.radians(float(x)) for x in
+                                                mdata[-2:]]  # Unpack and convert lat and lon
+                        del count  # Delete count
+                        continue  # Skip rest of loop
+
+                current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
+                # Same node check
+                if previous_coordinates == current_coordinates: # Check for duplicate co-ordinates
+                    if mdata[1] != previous_meta[-1]: # Check for separate node ids
+                        raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
+                    else:
+                        continue # Skip rest of loop
+
+                if version == 1:  # Check version number
+                    # Initialize data values
                     distance = Calculate_distance(previous_coordinates,
                                                   current_coordinates)  # Call distance calculation function
-
                     pretty_list = [x for x in mdata]  # Copy list values
                     pretty_list.append(distance)  # Append to list
                     if distance > min_distance:  # Check if calculated distance exceeds minimum distance
@@ -322,16 +337,15 @@ def Filter_csv(version=1, min_distance=None):
                         previous_meta = mdata[:-2] # Save meta data
                         previous_coordinates = current_coordinates  # Set values for next loop
                     previous_loop = pretty_list # Save values for next loop
-                if previous_loop[1] != previous_meta[1]: # Check if last values are not written to file
-                    Child_Write.writerow(pretty_list) # Write to file
-                return
 
-            elif version==2:
-                print("Filter process 2")
+                if version == 2:
 
+                    # coordinates = Calculate_coordinates(start,distance)
+            #End main loop
 
-                # coordinates = Inverse_calc_distance()
-                return
+            if previous_loop[1] != previous_meta[1]: # Check if last values are not written to file
+                Child_Write.writerow(pretty_list) # Write to file
+            return
 
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
