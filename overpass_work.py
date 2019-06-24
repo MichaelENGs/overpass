@@ -1,28 +1,27 @@
 ## Project: Skynet V2
 ## Phase: N/A Road Data From Overpass
 ## Michael Salzarulo
-## Description: Version 1.0
-# Intended to be used as a command line tool. This script will convert xml files
-# to csv files and contain a feature to sort the data within the file. This script is tested for use on
-# open street map (osm) xml files from the overpass api.
+## Description: Version 1.1
+# Intended to be used as a command line tool. This script will automatically query the overpass api and
+# return the desired data via csv file. Their is one operational filter method available to filter the output data
+# with a user specified distance. The filter method will generate a new file with each pass.
 # ----------------------------------------------------------------------------------------------------------------------
-## Updates for version 1.1
-# New additions to this include a query feature in which the user
-# can input a bounding box in lat and long which will grab the data from overpass api.
+## Updates for version 1.2
+# Features to be amended:
+#  - Query function (existing module will not pass on the high side)
+
 # Additional features to be added:
-#  - Find set of roads with way points and convert to csv
-#  - List by road number and way points
-#  - Create user defined garbage collection for extraneous way points
+#  - Filter method 2 add nodes at user defined distance
 #  - Refined query of converted data (split roads that are divided by the bounds)
 #  - Find length of the roads and add sum to csv file
+#  - one co-ordinate and radius bbox generation
+#  - Additional tagging methods
 #
 # Noted issues with current version:
-#  - Scrip expects 4 co-ordinates to identify bounding box
-#  - Original output file contains the way-node association
-#  - Calculate distance function does not follow the road ways it is a linear calculation
+#  - overpy can not be used on high side implementation
 
 import xml.etree.ElementTree as ET
-import csv, os, overpy, sys, math
+import csv, os, sys, math
 
 
 def Helpfunc(verbose=False):
@@ -260,7 +259,7 @@ def Calculate_distance(coords_set1, coords_set2):
 
 def Calculate_coordinates(start_set,distance):
     radius_of_earth = 6371  # mean value in km from: https://www.movable-type.co.uk/scripts/latlong.html
-
+    end_set="foo"
     # square of chord= 
     angular_distance = distance/radius_of_earth
     return end_set
@@ -339,7 +338,7 @@ def Filter_csv(version=1, min_distance=None):
                     previous_loop = pretty_list # Save values for next loop
 
                 if version == 2:
-
+                    print("hello world")
                     # coordinates = Calculate_coordinates(start,distance)
             #End main loop
 
@@ -349,6 +348,8 @@ def Filter_csv(version=1, min_distance=None):
 
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
+    import overpy # Only available for testing
+
     ## Tested example for version 1.0
     # import sys
     #
@@ -365,5 +366,5 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     #         Helpfunc()
     #     else:
     #         Helpfunc(True)
-    # PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
+    PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
     Filter_csv(min_distance=0)
