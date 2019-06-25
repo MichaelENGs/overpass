@@ -21,14 +21,15 @@
 #  - overpy can not be used on high side implementation
 
 import xml.etree.ElementTree as ET
-import csv, os, sys, math
+import csv, os, sys, math, re
 from urllib.request import urlopen
 from urllib.error import HTTPError
 from xml.sax import handler,make_parser
 from decimal import Decimal
 from datetime import datetime
+from collections import OrderedDict
 
-
+sys.setrecursionlimit(2000) # Heuristic value
 #-----------------------------------------------------------------------------------------------------------------------
 ## The following is ammended from the original version found at:
 # https://github.com/DinoTools/python-overpy/blob/master/overpy/__init__.py
@@ -42,6 +43,339 @@ GLOBAL_ATTRIBUTE_MODIFIERS = {
     "version": int,
     "visible": lambda v: v.lower() == "true"
 }
+
+
+XML_PARSER_DOM = 1
+XML_PARSER_SAX = 2
+
+
+def is_valid_type(element, cls):
+    """
+    Test if an element is of a given type.
+    :param Element() element: The element instance to test
+    :param Element cls: The element class to test
+    :return: False or True
+    :rtype: Boolean
+    """
+    return isinstance(element, cls) and element.id is not None
+
+
+class Result(object):
+    """
+    Class to handle the result.
+    """
+
+    def __init__(self, elements=None, api=None):
+        """
+        :param List elements:
+        :param api:
+        :type api: overpy.Overpass
+        """
+        if elements is None:
+            elements = []
+        self._areas = OrderedDict((element.id, element) for element in elements if is_valid_type(element, Area))
+        self._nodes = OrderedDict((element.id, element) for element in elements if is_valid_type(element, Node))
+        self._ways = OrderedDict((element.id, element) for element in elements if is_valid_type(element, Way))
+        self._relations = OrderedDict((element.id, element)
+                                      for element in elements if is_valid_type(element, Relation))
+        self._class_collection_map = {Node: self._nodes, Way: self._ways, Relation: self._relations, Area: self._areas}
+        self.api = api
+
+    def expand(self, other):
+        """
+        Add all elements from an other result to the list of elements of this result object.
+        It is used by the auto resolve feature.
+        :param other: Expand the result with the elements from this result.
+        :type other: overpy.Result
+        :raises ValueError: If provided parameter is not instance of :class:`overpy.Result`
+        """
+        if not isinstance(other, Result):
+            raise ValueError("Provided argument has to be instance of overpy:Result()")
+
+        other_collection_map = {Node: other.nodes, Way: other.ways, Relation: other.relations, Area: other.areas}
+        for element_type, own_collection in self._class_collection_map.items():
+            for element in other_collection_map[element_type]:
+                if is_valid_type(element, element_type) and element.id not in own_collection:
+                    own_collection[element.id] = element
+
+    def append(self, element):
+        """
+        Append a new element to the result.
+        :param element: The element to append
+        :type element: overpy.Element
+        """
+        if is_valid_type(element, Element):
+            self._class_collection_map[element.__class__].setdefault(element.id, element)
+
+    def get_elements(self, filter_cls, elem_id=None):
+        """
+        Get a list of elements from the result and filter the element type by a class.
+        :param filter_cls:
+        :param elem_id: ID of the object
+        :type elem_id: Integer
+        :return: List of available elements
+        :rtype: List
+        """
+        result = []
+        if elem_id is not None:
+            try:
+                result = [self._class_collection_map[filter_cls][elem_id]]
+            except KeyError:
+                result = []
+        else:
+            for e in self._class_collection_map[filter_cls].values():
+                result.append(e)
+        return result
+
+    def get_ids(self, filter_cls):
+        """
+        :param filter_cls:
+        :return:
+        """
+        return list(self._class_collection_map[filter_cls].keys())
+
+    def get_node_ids(self):
+        return self.get_ids(filter_cls=Node)
+
+    def get_way_ids(self):
+        return self.get_ids(filter_cls=Way)
+
+    def get_relation_ids(self):
+        return self.get_ids(filter_cls=Relation)
+
+    def get_area_ids(self):
+        return self.get_ids(filter_cls=Area)
+
+    @classmethod
+    def from_xml(cls, data, api=None, parser=None):
+        """
+        Create a new instance and load data from xml data or object.
+
+        .. note::
+            If parser is set to None, the functions tries to find the best parse.
+            By default the SAX parser is chosen if a string is provided as data.
+            The parser is set to DOM if an xml.etree.ElementTree.Element is provided as data value.
+        :param data: Root element
+        :type data: str | xml.etree.ElementTree.Element
+        :param api: The instance to query additional information if required.
+        :type api: Overpass
+        :param parser: Specify the parser to use(DOM or SAX)(Default: None = autodetect, defaults to SAX)
+        :type parser: Integer | None
+        :return: New instance of Result object
+        :rtype: Result
+        """
+        if parser is None:
+            if isinstance(data, str):
+                parser = XML_PARSER_SAX
+            else:
+                parser = XML_PARSER_DOM
+
+        result = cls(api=api)
+        if parser == XML_PARSER_DOM:
+            import xml.etree.ElementTree as ET
+            if isinstance(data, str):
+                root = ET.fromstring(data)
+            elif isinstance(data, ET.Element):
+                root = data
+            else:
+                raise ValueError("Bad data")
+
+            for elem_cls in [Node, Way, Relation, Area]:
+                for child in root:
+                    if child.tag.lower() == elem_cls._type_value:
+                        result.append(elem_cls.from_xml(child, result=result))
+
+        elif parser == XML_PARSER_SAX:
+            from io import StringIO
+            source = StringIO(data)
+            sax_handler = OSMSAXHandler(result)
+            parser = make_parser()
+            parser.setContentHandler(sax_handler)
+            parser.parse(source)
+        else:
+            raise Exception("Unknown XML parser")
+        return result
+
+    def get_area(self, area_id, resolve_missing=False):
+        """
+        Get an area by its ID.
+        :param area_id: The area ID
+        :type area_id: Integer
+        :param resolve_missing: Query the Overpass API if the area is missing in the result set.
+        :return: The area
+        :rtype: overpy.Area
+        :raises overpy.exception.DataIncomplete: The requested way is not available in the result cache.
+        :raises overpy.exception.DataIncomplete: If resolve_missing is True and the area can't be resolved.
+        """
+        areas = self.get_areas(area_id=area_id)
+        if len(areas) == 0:
+            if resolve_missing is False:
+                raise ValueError("Bad data")
+
+            query = ("\n"
+                     "[out:json];\n"
+                     "area({area_id});\n"
+                     "out body;\n"
+                     )
+            query = query.format(
+                area_id=area_id
+            )
+            tmp_result = self.api.query(query)
+            self.expand(tmp_result)
+
+            areas = self.get_areas(area_id=area_id)
+
+        if len(areas) == 0:
+            raise ValueError("Bad data")
+
+        return areas[0]
+
+    def get_areas(self, area_id=None, **kwargs):
+        """
+        Alias for get_elements() but filter the result by Area
+        :param area_id: The Id of the area
+        :type area_id: Integer
+        :return: List of elements
+        """
+        return self.get_elements(Area, elem_id=area_id, **kwargs)
+
+    def get_node(self, node_id, resolve_missing=False):
+        """
+        Get a node by its ID.
+        :param node_id: The node ID
+        :type node_id: Integer
+        :param resolve_missing: Query the Overpass API if the node is missing in the result set.
+        :return: The node
+        :rtype: overpy.Node
+        :raises overpy.exception.DataIncomplete: At least one referenced node is not available in the result cache.
+        :raises overpy.exception.DataIncomplete: If resolve_missing is True and at least one node can't be resolved.
+        """
+        nodes = self.get_nodes(node_id=node_id)
+        if len(nodes) == 0:
+            if not resolve_missing:
+                raise ValueError("Bad data")
+
+            query = ("\n"
+                     "[out:json];\n"
+                     "node({node_id});\n"
+                     "out body;\n"
+                     )
+            query = query.format(
+                node_id=node_id
+            )
+            tmp_result = self.api.query(query)
+            self.expand(tmp_result)
+
+            nodes = self.get_nodes(node_id=node_id)
+
+        if len(nodes) == 0:
+            raise ValueError("Bad data")
+
+        return nodes[0]
+
+    def get_nodes(self, node_id=None, **kwargs):
+        """
+        Alias for get_elements() but filter the result by Node()
+        :param node_id: The Id of the node
+        :type node_id: Integer
+        :return: List of elements
+        """
+        return self.get_elements(Node, elem_id=node_id, **kwargs)
+
+    def get_relation(self, rel_id, resolve_missing=False):
+        """
+        Get a relation by its ID.
+        :param rel_id: The relation ID
+        :type rel_id: Integer
+        :param resolve_missing: Query the Overpass API if the relation is missing in the result set.
+        :return: The relation
+        :rtype: overpy.Relation
+        :raises overpy.exception.DataIncomplete: The requested relation is not available in the result cache.
+        :raises overpy.exception.DataIncomplete: If resolve_missing is True and the relation can't be resolved.
+        """
+        relations = self.get_relations(rel_id=rel_id)
+        if len(relations) == 0:
+            if resolve_missing is False:
+                raise ValueError("Bad data")
+
+            query = ("\n"
+                     "[out:json];\n"
+                     "relation({relation_id});\n"
+                     "out body;\n"
+                     )
+            query = query.format(
+                relation_id=rel_id
+            )
+            tmp_result = self.api.query(query)
+            self.expand(tmp_result)
+
+            relations = self.get_relations(rel_id=rel_id)
+
+        if len(relations) == 0:
+            raise ValueError("Bad data")
+
+        return relations[0]
+
+    def get_relations(self, rel_id=None, **kwargs):
+        """
+        Alias for get_elements() but filter the result by Relation
+        :param rel_id: Id of the relation
+        :type rel_id: Integer
+        :return: List of elements
+        """
+        return self.get_elements(Relation, elem_id=rel_id, **kwargs)
+
+    def get_way(self, way_id, resolve_missing=False):
+        """
+        Get a way by its ID.
+        :param way_id: The way ID
+        :type way_id: Integer
+        :param resolve_missing: Query the Overpass API if the way is missing in the result set.
+        :return: The way
+        :rtype: overpy.Way
+        :raises overpy.exception.DataIncomplete: The requested way is not available in the result cache.
+        :raises overpy.exception.DataIncomplete: If resolve_missing is True and the way can't be resolved.
+        """
+        ways = self.get_ways(way_id=way_id)
+        if len(ways) == 0:
+            if resolve_missing is False:
+                raise ValueError("Bad data")
+
+            query = ("\n"
+                     "[out:json];\n"
+                     "way({way_id});\n"
+                     "out body;\n"
+                     )
+            query = query.format(
+                way_id=way_id
+            )
+            tmp_result = self.api.query(query)
+            self.expand(tmp_result)
+
+            ways = self.get_ways(way_id=way_id)
+
+        if len(ways) == 0:
+            raise ValueError("Bad data")
+
+        return ways[0]
+
+    def get_ways(self, way_id=None, **kwargs):
+        """
+        Alias for get_elements() but filter the result by Way
+        :param way_id: The Id of the way
+        :type way_id: Integer
+        :return: List of elements
+        """
+        return self.get_elements(Way, elem_id=way_id, **kwargs)
+
+    area_ids = property(get_area_ids)
+    areas = property(get_areas)
+    node_ids = property(get_node_ids)
+    nodes = property(get_nodes)
+    relation_ids = property(get_relation_ids)
+    relations = property(get_relations)
+    way_ids = property(get_way_ids)
+    ways = property(get_ways)
 
 
 class Element(object):
@@ -791,12 +1125,18 @@ class OSMSAXHandler(handler.ContentHandler):
 # End ammended module
 # ----------------------------------------------------------------------------------------------------------------------
 
-class Salzarulo_overpass_query(object):
+class Salzarulo_Overpass_Query(object):
+    """
+    Class to access the overpass api
 
-    def __init__(self,read_chunk_size=4096, url=None):
-        self.url=url
-        if url is None:
-            url = input("Please select alternate url to query")
+    """
+
+    default_url="http://overpass-api.de/api/interpreter"
+
+    def __init__(self, read_chunk_size=4096, url=None):
+        self.url=self.default_url
+        if url is not None:
+            #url = input("Please select alternate url to query")
             self.url = url
         self.read_chunck_size = read_chunk_size
 
@@ -814,8 +1154,32 @@ class Salzarulo_overpass_query(object):
                 break
             response = response + data
         f.close()
-        if f.code >= 200:
+        if f.code > 200:
             e = "Query error"
+        else:
+            content_type = f.getheader("Content-Type")
+            return self.parse_xml(response)
+
+    def parse_xml(self, data, encoding="utf-8", parser=XML_PARSER_SAX):
+        """
+        :param data: Raw XML Data
+        :type data: String or Bytes
+        :param encoding: Encoding to decode byte string
+        :type encoding: String
+        :return: Result object
+        :rtype: overpy.Result
+        """
+        if parser is None:
+            parser = self.xml_parser
+
+        if isinstance(data, bytes):
+            data = data.decode(encoding)
+
+        m = re.compile("<remark>(?P<msg>[^<>]*)</remark>").search(data)
+        if m:
+            self._handle_remark_msg(m.group("msg"))
+
+        return Result.from_xml(data, api=self, parser=parser)
 
 
 def Helpfunc(verbose=False):
@@ -906,7 +1270,7 @@ def Find_mid_points(query_result, csvobj, write=True):
     way_id = str(way.id)  # Store way id as string
     if "name" not in way.tags.keys(): way.tags["name"] = "Not named"  # Check for name tag if none is present create one
     road_name = way.tags["name"]  # Store road name
-    mid_lat, mid_lon = Find_mid_lat_lon(way.nodes)  # Calculate midpoints of lat and lon
+    # mid_lat, mid_lon = Find_mid_lat_lon(way.nodes)  # Calculate midpoints of lat and lon
     for node in way.nodes:
         val_list = [way_id + " " + road_name, node.id, node.lat, node.lon]  # Store values in list with desired formatting
         if write:
@@ -929,7 +1293,6 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     """
 
     print("Sending query to overpass ... ")  # Message to user
-
     Qstring = """[out:xml][bbox:%s];
     (
       way[highway];
@@ -937,9 +1300,8 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     out body;
     (._;>;);
     out skel qt;""" % (extent)
-    api = overpy.Overpass()  # Generate an overpass query object
+    api = Salzarulo_Overpass_Query()  # Generate an overpass query object
     result = api.query(Qstring)  # Method to query api results in parsed data
-
     print("Query successful")  # Message to user
 
     with open("Query Result.csv", "w+") as csvfp:  # Open file with handeler
@@ -1144,7 +1506,6 @@ def Filter_csv(version=1, min_distance=None):
 
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
-    import overpy # Only available for testing
 
     ## Tested example for version 1.0
     # import sys
@@ -1163,4 +1524,4 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     #     else:
     #         Helpfunc(True)
     PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
-    Filter_csv(min_distance=0)
+    # Filter_csv(min_distance=0)
