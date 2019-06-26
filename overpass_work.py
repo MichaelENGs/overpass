@@ -1416,10 +1416,12 @@ def Calculate_distance(coords_set1, coords_set2):
 
 
 def Calculate_coordinates(start_set,distance):
-    radius_of_earth = 6371  # mean value in km from: https://www.movable-type.co.uk/scripts/latlong.html
+
+    Qstring = """
+    [out:xml];
+    """
+
     end_set="foo"
-    # square of chord= 
-    angular_distance = distance/radius_of_earth
     return end_set
 
 
@@ -1462,7 +1464,8 @@ def Filter_csv(version=1, min_distance=None):
                 if "count" in dir():  # Check if count is defined
                     if count < 2:  # Check value of count
                         if count == 1:
-                            mdata.append("Distance from last point")  # Append new column to header
+                            if version == 1:
+                                mdata.append("Distance from last point (km)")  # Append new column to header
                         assert mdata is not None,"Broken master file data"  # Sanity check writing None type to file will result in error
                         meta_data.append(mdata)  # Add meta data to list
                         count += 1  # Incriment counter
@@ -1476,6 +1479,7 @@ def Filter_csv(version=1, min_distance=None):
                         continue  # Skip rest of loop
 
                 current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
+
                 # Same node check
                 if previous_coordinates == current_coordinates: # Check for duplicate co-ordinates
                     if mdata[1] != previous_meta[-1]: # Check for separate node ids
@@ -1497,11 +1501,13 @@ def Filter_csv(version=1, min_distance=None):
 
                 if version == 2:
                     print("hello world")
-                    # coordinates = Calculate_coordinates(start,distance)
+                    # coordinates = Calculate_coordinates(previous_coordinates,min_distance)
             #End main loop
 
             if previous_loop[1] != previous_meta[1]: # Check if last values are not written to file
                 Child_Write.writerow(pretty_list) # Write to file
+
+            print("Filter process complete.")
             return
 
 
@@ -1523,5 +1529,5 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     #         Helpfunc()
     #     else:
     #         Helpfunc(True)
-    PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
-    # Filter_csv(min_distance=0)
+    # PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
+    Filter_csv(min_distance=0.01)
