@@ -1415,14 +1415,18 @@ def Calculate_distance(coords_set1, coords_set2):
     return distance_between_points
 
 
-def Calculate_coordinates(start_set,distance):
+def Calculate_coordinates(start_set,end_set,distance):
 
-    Qstring = """
-    [out:xml];
-    """
-
-    end_set="foo"
-    return end_set
+    lat_start, lon_start = start_set
+    lat_end, lon_end = end_set
+    x = abs(lat_start-lat_end)
+    y = abs(lon_start-lon_end)
+    mag = math.sqrt((x**2)-(y**2))
+    unit_vector = (x/mag, y/mag)
+    lat_point = lat_start + distance*unit_vector[0]
+    lon_point = lon_start + distance*unit_vector[1]
+    coordinate_set=[lat_point,lon_point]
+    return coordinate_set
 
 
 def Filter_csv(version=1, min_distance=None):
@@ -1466,11 +1470,13 @@ def Filter_csv(version=1, min_distance=None):
                         if count == 1:
                             if version == 1:
                                 mdata.append("Distance from last point (km)")  # Append new column to header
+                            if version == 2:
+                                generated_node_count = 0
                         assert mdata is not None,"Broken master file data"  # Sanity check writing None type to file will result in error
                         meta_data.append(mdata)  # Add meta data to list
                         count += 1  # Incriment counter
                         continue  # Skip rest of loop
-                    if count == 2 and count < 4:
+                    if count == 2:
                         Header_write(meta_data, Child_Write)  # Write meta data to file
                         previous_meta = mdata[:-2]
                         previous_coordinates = [math.radians(float(x)) for x in
@@ -1487,21 +1493,30 @@ def Filter_csv(version=1, min_distance=None):
                     else:
                         continue # Skip rest of loop
 
+                distance = Calculate_distance(previous_coordinates,
+                                              current_coordinates)  # Call distance calculation function
+                pretty_list = [x for x in mdata]  # Copy list values
+
                 if version == 1:  # Check version number
                     # Initialize data values
-                    distance = Calculate_distance(previous_coordinates,
-                                                  current_coordinates)  # Call distance calculation function
-                    pretty_list = [x for x in mdata]  # Copy list values
                     pretty_list.append(distance)  # Append to list
                     if distance > min_distance:  # Check if calculated distance exceeds minimum distance
-                        Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
                         previous_meta = mdata[:-2] # Save meta data
                         previous_coordinates = current_coordinates  # Set values for next loop
-                    previous_loop = pretty_list # Save values for next loop
+                        Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
 
                 if version == 2:
-                    print("hello world")
-                    # coordinates = Calculate_coordinates(previous_coordinates,min_distance)
+                    if mdata[0] == previous_loop[0] and distance > min_distance:
+                        coordinates = Calculate_coordinates(previous_coordinates, min_distance)
+                        node_str = "Generated node # %d" % generated_node_count
+                        generated_node_count +=1
+                        pretty_list[1] = node_str
+                        pretty_list[-2],pretty_list[-1] = coordinates
+                        previous_coordinates=coordinates
+                        previous_meta = mdata[:-2]
+                    Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
+
+                previous_loop = pretty_list  # Save values for next loop
             #End main loop
 
             if previous_loop[1] != previous_meta[1]: # Check if last values are not written to file
@@ -1530,4 +1545,4 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     #     else:
     #         Helpfunc(True)
     # PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
-    Filter_csv(min_distance=0.01)
+    Filter_csv(version=2,min_distance=50)
