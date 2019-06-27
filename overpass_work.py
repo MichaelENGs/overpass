@@ -8,17 +8,14 @@
 # ----------------------------------------------------------------------------------------------------------------------
 ## Updates for version 1.2
 # Features to be amended:
-#  - Query function (existing module will not pass on the high side)
+#  - Query function (existing module will not pass on the high side) [done]
 
 # Additional features to be added:
-#  - Filter method 2 add nodes at user defined distance
+#  - Filter method 2 add nodes at user defined distance [done]
 #  - Refined query of converted data (split roads that are divided by the bounds)
 #  - Find length of the roads and add sum to csv file
 #  - one co-ordinate and radius bbox generation
 #  - Additional tagging methods
-#
-# Noted issues with current version:
-#  - overpy can not be used on high side implementation
 
 import xml.etree.ElementTree as ET
 import csv, os, sys, math, re
@@ -1315,6 +1312,67 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
         writer.writerow(header)
         Find_mid_points(result.ways, writer)  # Recursive function to write desired data
     print("File Generated in %s" % os.getcwd())  # Message to user
+
+
+def SecondQ(cell_list):
+    # each cell has unique id defined by 4 lat long pairs
+    # find way points in each cell
+    # break nodes at boundary
+
+    # input list of cells
+    # loop cell by cell
+    cell_id = 0
+    for cell in cell_list:
+        with open("Cell_%d" % cell_id, "w+") as nfp:
+        # throw out data not in cell
+            # open data
+            with open("*.csv", "r") as fp:
+                writer = csv.writer(nfp)
+                # read data
+                for data in fp.readline():
+                    if "lat" in data:
+                        continue
+
+                    # organize data
+                    way, node, lat, lon = data.split()
+                    current_coordinates = [lat, lon]
+                    row_to_write = data.split()
+                    row_to_write.insert(cell_id)
+                    if Isincell(current_coordinates, cell): # need to write this function
+                        writer.writerow(row_to_write)
+                    # Check to see way crosses cell boundary
+                    if way == previous_way and (Isincell(previous_coordinates,cell) or Isincell(current_coordinates,cell)):
+
+                        # re write to one function
+                        # Generate boundary coordinates
+                        distance = Calculate_distance(previous_coordinates,current_coordinates)
+
+                        # to get dependent value I need to determine what side of cell the coordinates fall on
+                        # (e,w) or (n,s) if (e,w) the dependent value = lon - lon else = lat-lat
+                        # This block needs some more thought
+                        east_west = abs(previous_lon-lon)
+                        north_south = abs(previous_lat-lat)
+                        unknown_value = east_west
+                        if previous_coordinates > max(cell):
+                            unknown_value = north_south
+                        if Isincell(current_coordinates,cell):
+                            unknown_value = east_west
+                            if current_coordinates > max(cell):
+                                unknown_value = north_south
+
+                        theta = math.acos(dependent_velue/distance)
+                        # The unkown value is calculated as follows
+                        lat_o = min(map(lambda abs(lat-x): cell,cell))
+                        short_distance = unkown/math.cos(theta)
+                        boundary_coordinates = Calculate_coordinates(previous_coordinates,current_coordinates,short_distance)
+
+                        writer.writerow(row_to_write)
+                    previous_way, previous_node, previous_lat,previous_lon = data.split()
+                    previous_coordinates = [prvious_lat,previous_lon]
+        cell_id += 1
+            # add to list if true
+            # open cell file
+            # write to cell file
 
 
 def Smart_unpack(list_of_tuple):
