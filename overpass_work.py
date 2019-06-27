@@ -1158,6 +1158,8 @@ class Salzarulo_Overpass_Query(object):
             e = "Query error"
         else:
             content_type = f.getheader("Content-Type")
+            with open("Query result.xml", "w+") as fp:
+                fp.write(response.decode("utf-8"))
             return self.parse_xml(response)
 
     def parse_xml(self, data, encoding="utf-8", parser=XML_PARSER_SAX):
@@ -1304,12 +1306,13 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     result = api.query(Qstring)  # Method to query api results in parsed data
     print("Query successful")  # Message to user
 
-    with open("Query Result.csv", "w+") as csvfp:  # Open file with handeler
+    with open("Query Result.csv", "w+", newline="") as csvfp:  # Open file with handeler
         print("Generating csv file ...")  # Message to user
         header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
         meta_data = [["extent"] + extent.split(), header]  # Store meta data as list
-        Header_write(meta_data, writer)  # Write meta data to file
+        #Header_write(meta_data[1], writer)  # Write meta data to file
+        writer.writerow(header)
         Find_mid_points(result.ways, writer)  # Recursive function to write desired data
     print("File Generated in %s" % os.getcwd())  # Message to user
 
@@ -1453,13 +1456,14 @@ def Filter_csv(version=1, min_distance=None):
         min_distance = input("Please specify minimum distance")  # Prompt user for entry
 
     with open("Query Result.csv", "r", newline='') as Master_List:  # Open csv file from original query
-        with open("Filtered Results version_%d.csv" % version, "w+") as Child_List:  # Create or truncate csv file to write
+        with open("Filtered Results version_%d.csv" % version, "w+", newline="") as Child_List:  # Create or truncate csv file to write
             Master_Read = csv.reader(Master_List)  # Create read object
             Child_Write = csv.writer(Child_List)  # Create write object
 
             previous_coordinates = 0
             count = 0
             meta_data = []
+            previous_loop = [0]
             for mdata in Master_Read:
                 if mdata == []:  # Check if anthing was read
                     continue  # Skip loop
@@ -1507,7 +1511,7 @@ def Filter_csv(version=1, min_distance=None):
 
                 if version == 2:
                     if mdata[0] == previous_loop[0] and distance > min_distance:
-                        coordinates = Calculate_coordinates(previous_coordinates, min_distance)
+                        coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, min_distance)
                         node_str = "Generated node # %d" % generated_node_count
                         generated_node_count +=1
                         pretty_list[1] = node_str
@@ -1544,5 +1548,5 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     #         Helpfunc()
     #     else:
     #         Helpfunc(True)
-    # PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
-    Filter_csv(version=2,min_distance=50)
+    PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
+    #Filter_csv(version=2,min_distance=.050)
