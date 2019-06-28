@@ -1,21 +1,12 @@
 ## Project: Skynet V2
 ## Phase: N/A Road Data From Overpass
 ## Michael Salzarulo
-## Description: Version 1.1
+## Description: Version 1.2
 # Intended to be used as a command line tool. This script will automatically query the overpass api and
 # return the desired data via csv file. Their is one operational filter method available to filter the output data
 # with a user specified distance. The filter method will generate a new file with each pass.
 # ----------------------------------------------------------------------------------------------------------------------
-## Updates for version 1.2
-# Features to be amended:
-#  - Query function (existing module will not pass on the high side) [done]
 
-# Additional features to be added:
-#  - Filter method 2 add nodes at user defined distance [done]
-#  - Refined query of converted data (split roads that are divided by the bounds)
-#  - Find length of the roads and add sum to csv file
-#  - one co-ordinate and radius bbox generation
-#  - Additional tagging methods
 
 import xml.etree.ElementTree as ET
 import csv, os, sys, math, re
@@ -1315,14 +1306,15 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
 
 
 def SecondQ(cell_list):
-    # each cell has unique id defined by 4 lat long pairs
-    # input list of cells
+    """
+    Refined query, this function will break down the data into user defined cells and generate two output files.
+    A file with a comprehensive list of the cells their ids and the corresponding ways along with the corresponding
+    nodes.
+    A file with a list of the cells their ids and the road densities per cell.
 
-    # find way points in each cell
-
-    # break nodes at boundary
-
-    # throw out data not in cell
+    :param cell_list:
+    :return:
+    """
 
     with open("Cell separated data.csv", "w+", newline="") as nfp:
         writer = csv.writer(nfp)
@@ -1367,16 +1359,18 @@ def SecondQ(cell_list):
                         row_to_write = [cell_data,way,node,lat,lon]
                         writer.writerow(row_to_write)
                         road_length = Calculate_distance(previous_coordinates,boundary_coordinates)
+
+                    # set data for next loop
                     previous_way, previous_node, previous_lat,previous_lon = data.split()
                     previous_coordinates = [previous_lat,previous_lon]
 
-                    # Do calculations here
+                # Calculate road densities
                     total_road_length += road_length
-            # write to file here
             with open("Road density analysis.csv", "w+",newline="") as nnfp:
                 cell_writer = csv.writer(nnfp)
                 row_to_write = [cell_id,"total road length: %f" % total_road_length]
-            cell_id += 1
+                cell_writer.writerow(row_to_write)
+            cell_id += 1 # Increment cell id
 
 
 def Isincell(node,cell):
@@ -1615,23 +1609,75 @@ def Filter_csv(version=1, min_distance=None):
             return
 
 
+def Filter():
+    """
+    User interface module.
+
+    :return:
+    """
+
+
+    version = int(input("select filter version >>>"))
+    distance = float(input("input minimum distance >>>"))
+    Filter_csv(version=version, min_distance=distance)
+
+    return Filter_csv(version=version,min_distance=distance)
+
+
+def Cell_list_setup():
+
+    print("This is the setup menu for generating a refined query")
+
+
+    return cell_list
+
+
+def User_input_error():
+    print("Invalid input!")
+
+
+def Check_user(user_input):
+
+    if user_input == "exit":
+        return None
+    if user_input == "help":
+        return Helpfunc()
+    if user_input != "Y" or user_input != "N":
+        return User_input_error()
+    return user_input
+
+def Main_interface():
+
+    while True:
+        print("type 'exit' at anytime to exit the program\ntype 'help' at anytime to see the help menu")
+        user = input("Input extent to query >>>")
+        if Check_user(user) is None:
+            break
+        extent = user
+        PrimaryQ(extent)
+        Filter()
+        user = input("Filter again? [Y/N] >>>")
+        if Check_user(user) is None:
+            break
+        if user == "Y":
+            Filter()
+        user = input("Refine search and calculate road density? [Y/N] >>>")
+        if Check_user(user) is None:
+            break
+        if user == "Y":
+            cell_list = Cell_list_setup()
+            SecondQ(cell_list)
+        user = input("you may exit now or press any key to query again >>>")
+        if Check_user(user) is None:
+            break
+
+
+
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
 
-    ## Tested example for version 1.0
-    # import sys
-    #
-    # # Add option handeling and help function here.
-    #
-    # print(sys.argv[1])  # Echo the file path to the user
-    # Xml2csv(sys.argv[1])
-    #
-    # # Xml2csv("C:\\Users\\msalzarulo\\Documents\\skynetV2\\xml2csv\\")
+    print("Salzarulo Road Density analysis tool")
+    Main_interface()
+    print("Goodbye")
 
-    # Testing example for version 1.1
-    # if " -h " in sys.argv or " --help " in sys.argv:
-    #     if " -v " in sys.argv or " --verbose " in sys.argv:
-    #         Helpfunc()
-    #     else:
-    #         Helpfunc(True)
     PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
     #Filter_csv(version=2,min_distance=.050)
