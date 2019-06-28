@@ -1326,13 +1326,16 @@ def SecondQ(cell_list):
 
     with open("Cell separated data.csv", "w+", newline="") as nfp:
         writer = csv.writer(nfp)
-    cell_id = 0 # initialize cell id
-    previous_node = None
-    previous_way = None
-    previous_coordinates = None
-    previous_lon = None
-    previous_lat = None
-    for cell in cell_list:  # loop cell by cell
+        cell_id = 0 # initialize cell id
+        node_id = 0 # initialize node id
+        previous_node = None
+        previous_way = None
+        previous_coordinates = None
+        previous_lon = None
+        previous_lat = None
+        for cell in cell_list:  # loop cell by cell
+            total_road_length = 0
+            cell_data = cell + str(cell_id)
             # open data
             with open("Filtered results version_2.csv", "r") as fp:
                 reader = csv.reader(fp)
@@ -1349,23 +1352,31 @@ def SecondQ(cell_list):
                     way, node, lat, lon = data.split()
                     current_coordinates = [lat, lon]
                     row_to_write = data.split()
-                    cell_data = cell + str(cell_id)
                     row_to_write.insert(cell_data)
                     if Isincell(current_coordinates, cell):
                         writer.writerow(row_to_write)
+                        if way == previous_way:
+                            road_length = Calculate_distance(previous_coordinates,current_coordinates)
 
                     # Check to see way crosses cell boundary
                     if way == previous_way and (Isincell(previous_coordinates,cell) or Isincell(current_coordinates,cell)):
-                        boundary_coordinates = Generate_boundary_coordinates()
-
-
+                        boundary_coordinates = Generate_boundary_coordinates(previous_coordinates,current_coordinates,cell)
+                        node = "Generated node # %d" % node_id
+                        node_id += 1
+                        lat,lon = boundary_coordinates
+                        row_to_write = [cell_data,way,node,lat,lon]
                         writer.writerow(row_to_write)
+                        road_length = Calculate_distance(previous_coordinates,boundary_coordinates)
                     previous_way, previous_node, previous_lat,previous_lon = data.split()
                     previous_coordinates = [previous_lat,previous_lon]
-        cell_id += 1
-            # add to list if true
-            # open cell file
-            # write to cell file
+
+                    # Do calculations here
+                    total_road_length += road_length
+            # write to file here
+            with open("Road density analysis.csv", "w+",newline="") as nnfp:
+                cell_writer = csv.writer(nnfp)
+                row_to_write = [cell_id,"total road length: %f" % total_road_length]
+            cell_id += 1
 
 
 def Isincell(node,cell):
