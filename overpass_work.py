@@ -1540,17 +1540,21 @@ def Filter_csv(version=1, min_distance=None):
                         continue  # Skip rest of loop
                     if count == 2:
                         Header_write(meta_data, Child_Write)  # Write meta data to file
-                        previous_meta = mdata[:-2]
+                        previous_write_meta = mdata[:-2]
                         previous_coordinates = [math.radians(float(x)) for x in
                                                 mdata[-2:]]  # Unpack and convert lat and lon
                         del count  # Delete count
                         continue  # Skip rest of loop
 
                 current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
+                current_way = mdata[0]
+                previous_way = previous_loop[0]
+                current_node = mdata[1]
+                previous_node = previous_loop[0]
 
                 # Same node check
                 if previous_coordinates == current_coordinates: # Check for duplicate co-ordinates
-                    if mdata[1] != previous_meta[-1]: # Check for separate node ids
+                    if current_node != previous_node: # Check for separate node ids
                         raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
                     else:
                         continue # Skip rest of loop
@@ -1559,29 +1563,36 @@ def Filter_csv(version=1, min_distance=None):
                                               current_coordinates)  # Call distance calculation function
                 pretty_list = [x for x in mdata]  # Copy list values
 
-                if version == 1:  # Check version number
-                    # Initialize data values
-                    pretty_list.append(distance)  # Append to list
-                    if distance > min_distance:  # Check if calculated distance exceeds minimum distance
-                        previous_meta = mdata[:-2] # Save meta data
-                        previous_coordinates = current_coordinates  # Set values for next loop
-                        Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
+                if current_way == previous_way: # Check for same road
+                    if version == 1:  # Check version number
+                        # Initialize data values
+                        pretty_list.append(distance)  # Append to list
+                        if distance > min_distance:  # Check if calculated distance exceeds minimum distance
+                            previous_write_meta = mdata[:-2] # Save meta data
+                            previous_coordinates = current_coordinates  # Set values for next loop
+                            Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
 
-                if version == 2:
-                    if mdata[0] == previous_loop[0] and distance > min_distance:
-                        coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, min_distance)
-                        node_str = "Generated node # %d" % generated_node_count
-                        generated_node_count +=1
-                        pretty_list[1] = node_str
-                        pretty_list[-2],pretty_list[-1] = coordinates
-                        previous_coordinates=coordinates
-                        previous_meta = mdata[:-2]
-                    Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
+                    if version == 2: # Check version number
+                        if distance > min_distance: # Check if points exceed min distance
+                            coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, min_distance)
+                            node_str = "Generated node # %d" % generated_node_count # save string to write
+                            generated_node_count +=1 # incriment generated id
+                            # update data to write
+                            pretty_list[1] = node_str
+                            pretty_list[-2],pretty_list[-1] = coordinates
+                            # update data for next loop
+                            previous_coordinates=coordinates
+                            previous_write_meta = mdata[:-2]
+                        Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
+                else:
+                    if version ==1:
+                        pretty_list.append(distance)
+                    Child_Write.writerow(pretty_list)
 
                 previous_loop = pretty_list  # Save values for next loop
             #End main loop
 
-            if previous_loop[1] != previous_meta[1]: # Check if last values are not written to file
+            if previous_loop[1] != previous_write_meta[1]: # Check if last values are not written to file
                 Child_Write.writerow(pretty_list) # Write to file
 
             print("Filter process complete.")
