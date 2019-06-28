@@ -1,10 +1,10 @@
 ## Project: Skynet V2
 ## Phase: N/A Road Data From Overpass
 ## Michael Salzarulo
-## Description: Version 1.2
+## Description: Version 1.3
 # Intended to be used as a command line tool. This script will automatically query the overpass api and
-# return the desired data via csv file. Their is one operational filter method available to filter the output data
-# with a user specified distance. The filter method will generate a new file with each pass.
+# return the desired data via csv file. This software comes equip with an interface to swiftly guide the user through
+# process of generating and analyzing data.
 # ----------------------------------------------------------------------------------------------------------------------
 
 
@@ -1625,10 +1625,20 @@ def Filter():
 
 
 def Cell_list_setup():
+    """
+    Set up function to assist user in generating refined query data.
+
+    :return:
+    """
 
     print("This is the setup menu for generating a refined query")
-
-
+    cell_list = []
+    while True:
+        coordinate_pairs = input("Input Corner co-ordinate pairs\nseparate each co-ordinate with a space >>>").split()
+        cell_list.append(coordinate_pairs)
+        user = input("Input another cell? [Y/N] >>>")
+        if user =="N":
+            break
     return cell_list
 
 
@@ -1647,6 +1657,11 @@ def Check_user(user_input):
     return user_input
 
 def Main_interface():
+    """
+    This function is the main interface of the software. It will walk the user through the steps of analysis.
+
+    :return:
+    """
 
     while True:
         print("type 'exit' at anytime to exit the program\ntype 'help' at anytime to see the help menu")
@@ -1678,6 +1693,3 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     print("Salzarulo Road Density analysis tool")
     Main_interface()
     print("Goodbye")
-
-    PrimaryQ("40.0810,-75.4005,40.1143,-75.3533")
-    #Filter_csv(version=2,min_distance=.050)
