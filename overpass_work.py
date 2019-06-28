@@ -1316,140 +1316,145 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
 
 def SecondQ(cell_list):
     # each cell has unique id defined by 4 lat long pairs
+    # input list of cells
+
     # find way points in each cell
+
     # break nodes at boundary
 
-    # input list of cells
-    # loop cell by cell
-    cell_id = 0
-    for cell in cell_list:
-        with open("Cell_%d" % cell_id, "w+") as nfp:
-        # throw out data not in cell
+    # throw out data not in cell
+
+    with open("Cell separated data.csv", "w+", newline="") as nfp:
+        writer = csv.writer(nfp)
+    cell_id = 0 # initialize cell id
+    previous_node = None
+    previous_way = None
+    previous_coordinates = None
+    previous_lon = None
+    previous_lat = None
+    for cell in cell_list:  # loop cell by cell
             # open data
-            with open("*.csv", "r") as fp:
-                writer = csv.writer(nfp)
+            with open("Filtered results version_2.csv", "r") as fp:
+                reader = csv.reader(fp)
                 # read data
-                for data in fp.readline():
+                for data in reader:
+                    # Create and write header
                     if "lat" in data:
+                        pretty_list = [x for x in data]
+                        pretty_list.insert("cell id/bbox")
+                        writer.writerow(pretty_list)
                         continue
 
                     # organize data
                     way, node, lat, lon = data.split()
                     current_coordinates = [lat, lon]
                     row_to_write = data.split()
-                    row_to_write.insert(cell_id)
-                    if Isincell(current_coordinates, cell): # need to write this function
+                    cell_data = cell + str(cell_id)
+                    row_to_write.insert(cell_data)
+                    if Isincell(current_coordinates, cell):
                         writer.writerow(row_to_write)
+
                     # Check to see way crosses cell boundary
                     if way == previous_way and (Isincell(previous_coordinates,cell) or Isincell(current_coordinates,cell)):
+                        boundary_coordinates = Generate_boundary_coordinates()
 
-                        # re write to one function
-                        # Generate boundary coordinates
-                        distance = Calculate_distance(previous_coordinates,current_coordinates)
-
-                        # to get dependent value I need to determine what side of cell the coordinates fall on
-                        # (e,w) or (n,s) if (e,w) the dependent value = lon - lon else = lat-lat
-                        # This block needs some more thought
-                        east_west = abs(previous_lon-lon)
-                        north_south = abs(previous_lat-lat)
-                        unknown_value = east_west
-                        if previous_coordinates > max(cell):
-                            unknown_value = north_south
-                        if Isincell(current_coordinates,cell):
-                            unknown_value = east_west
-                            if current_coordinates > max(cell):
-                                unknown_value = north_south
-
-                        theta = math.acos(dependent_velue/distance)
-                        # The unkown value is calculated as follows
-                        lat_o = min(map(lambda abs(lat-x): cell,cell))
-                        short_distance = unkown/math.cos(theta)
-                        boundary_coordinates = Calculate_coordinates(previous_coordinates,current_coordinates,short_distance)
 
                         writer.writerow(row_to_write)
                     previous_way, previous_node, previous_lat,previous_lon = data.split()
-                    previous_coordinates = [prvious_lat,previous_lon]
+                    previous_coordinates = [previous_lat,previous_lon]
         cell_id += 1
             # add to list if true
             # open cell file
             # write to cell file
 
 
-def Smart_unpack(list_of_tuple):
+def Isincell(node,cell):
     """
-    This function will unpack a list of tuples and assign the value to the corresponding data type.
+    This function will organize the data in the cell and return a boolean value based on in the point falls in the cell.
 
-    :param list_of_tuple:
-    :return unpacked_list:
-    """
-    unpacked_list = []
-    for pair in list_of_tuple:
-        if pair[0] == 'user':
-            unpacked_list.append(str(pair[1]).encode('UTF-8'))
-        elif pair[0] == 'lat' or pair[0] == 'lon':
-            unpacked_list.append(float(pair[1]))
-        elif pair[0] == 'timestamp':
-            unpacked_list.append(pair[1])
-        else:
-            unpacked_list.append(int(pair[1]))
-
-    return unpacked_list
-
-
-def Xml2csv(path, smart=True):
-    """
-    This function will convert data from xml to csv. It expects a path to a directory which contains the xml files to be
-    converted.
-
-    :param path:
-    :keyword smart:
+    :param node:
+    :param cell:
     :return:
     """
 
-    for root, _, dir in os.walk(path):  # parse folder for xml files
-        files = [os.path.join(root, string) for string in dir if string[-4:] == ".xml"]  # generate list of files
+    lat_list,lon_list = Cell_data_strip(cell)
 
-    print("Selection:")  # Display to user
+    lat_node = node[0]
+    lon_node = node[1]
+    min_lat = min(lat_list)
+    min_lon = min(lon_list)
+    max_lat = max(lat_list)
+    max_lon = max(lon_list)
+    # check lat value in bounds
+    if lat_node > min_lat and lat_node<max_lat and lon_node>min_lon and lon_node<max_lon:
+        return True
+    return False
 
-    # The quick and dirty method
-    if not smart:  # Default method
-        print("Quick and dirty")  # Display method to user
-        index = 0
-        for fp in files:
-            with open(fp, "r") as fp:  # open file
-                data = fp.read()
-                data = data.split()
-                ",".join(data)  # convert to csv
-                with open("xml2csv_" + index + ".csv", "w+") as nfp:  # save data to new file
-                    nfp.write(data)
-                index + +1
 
-    # The smart and pretty method
-    else:
-        print("Smart Parse")  # Display method to user
-        for fp in files:
-            tree = ET.parse(fp)  # Create element tree object
-            root = tree.getroot()  # Get the elements of the object
-            with open(fp[:-4] + ".csv", "w+") as node_data:  # Open new file for writing
-                csvwriter = csv.writer(node_data)  # Generate writer object
-                header = []  # Redacted
-                index = 0  # Start loop index
-                for node in root.findall('node'):  # Loop through all "node" elements
-                    feature_data = []  # Initialize list
-                    if index == 0:  # Check loop index
-                        print(node.attrib.keys())
-                        csvwriter.writerow(node.attrib.keys())  # Write header row
-                        index += 1
-                    # type conversions to match appropriate data type
-                    feature_data.append(Smart_unpack(node.attrib.items()))  # unpack values
-                    print(node.attrib.keys())
-                    print(feature_data)
-                    csvwriter.writerow(feature_data)
-            # name_of_file = fp[:-4] + '.csv'  # Save name of file to string
-            # print("Wrote to csv\n Generated: %s" % name_of_file)  # Display file to user
-            f"Wrote to csv\n Generated: {fp[:-4] + '.csv'}"  # Display file to user
+def Generate_boundary_coordinates(previous_coordinates,current_coordinates, cell):
+    """
+    This function will generate coordinates of a point that lies on the boundary of the given cell using the law of
+    similar right triangles.
 
-    return
+    :param previous_coordinates:
+    :param current_coordinates:
+    :param cell:
+    :return:
+    """
+
+    distance = Calculate_distance(previous_coordinates, current_coordinates) # Calculate distance between points
+
+    # Unpack data
+    cell_lat_list,cell_lon_list = Cell_data_strip(cell)
+    previous_lat,previous_lon = previous_coordinates
+    lat,lon = current_coordinates
+
+    # Calculate direction agnostic values
+    north_south = abs(previous_lon - lon)
+    east_west = abs(previous_lat - lat)
+    point_to_point_cartesian_displacement = east_west # Default value assumes current point outside cell
+    short_lat = min(map(lambda x: abs(lat-x),cell_lat_list)) # Displacement to boundary
+    if previous_lon > max(cell_lon_list) or previous_lon < min(cell_lon_list): # Check if lon vale outside cell
+        point_to_point_cartesian_displacement = north_south
+        short_lon = min(map(lambda x: abs(lon-x), cell_lon_list))
+    if Isincell(current_coordinates, cell): # Check if current point in cell
+        point_to_point_cartesian_displacement = east_west
+        short_lon = min(map(lambda x: abs(lat - x), cell_lon_list))
+        if lon > max(cell_lon_list) or lon < min(cell_lon_list): # Check lon outside cell
+            point_to_point_cartesian_displacement = north_south
+            short_lon = min(map(lambda x: abs(lon - x), cell_lon_list))
+
+    theta = math.acos(point_to_point_cartesian_displacement / distance) # Calculate angle
+
+    short_x = short_lat # Default assume lat is edge of interest
+    if point_to_point_cartesian_displacement == north_south: # Check position of point
+        short_x = short_lon
+    short_distance = short_x / math.cos(theta) # Calculate distance to boundary line
+    coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, short_distance) # Calculate co-ordinates of boundary point
+    return coordinates
+
+
+def Cell_data_strip(cell):
+    """
+    Convert cell parameters to usable data.
+
+    :param cell:
+    :return:
+    """
+
+    # Convert data to usable format
+    cell_num = [Decimal(x) for x in cell]
+    lat_list = []
+    lon_list = []
+    # Generate list of lat and lon
+    for x in range(len(cell_num)):
+        if x%2 == 0:
+            lat_list.append(cell_num[x])
+        else:
+            lon_list.append(cell_num[x])
+
+
+    return [lat_list,lon_list]
 
 
 def Calculate_distance(coords_set1, coords_set2):
