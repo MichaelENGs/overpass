@@ -1173,6 +1173,7 @@ class Salzarulo_Overpass_Query(object):
 
 
 def Helpfunc(verbose=False):
+    #TODO: Update this function with appropriate guidence
     """
     This function is the help option to explain to the user how to use the program. The message can be viewed in a
     verbose form if specified by the user.
@@ -1326,25 +1327,27 @@ def SecondQ(cell_list):
         previous_lon = None
         previous_lat = None
         for cell in cell_list:  # loop cell by cell
+            road_length = 0
             total_road_length = 0
-            cell_data = cell + str(cell_id)
+            cell_data = cell + "_" + str(cell_id)
             # open data
             with open("Filtered results version_2.csv", "r") as fp:
                 reader = csv.reader(fp)
                 # read data
                 for data in reader:
+                    if data == []:
+                        continue
                     # Create and write header
-                    if "lat" in data:
+                    if "Lat" in data:
                         pretty_list = [x for x in data]
-                        pretty_list.insert("cell id/bbox")
+                        pretty_list.insert(0,"cell id/bbox")
                         writer.writerow(pretty_list)
                         continue
 
                     # organize data
-                    way, node, lat, lon = data.split()
-                    current_coordinates = [lat, lon]
-                    row_to_write = data.split()
-                    row_to_write.insert(cell_data)
+                    way, node, lat, lon = data
+                    current_coordinates = [float(lat), float(lon)]
+                    row_to_write = [cell_data, way, node, lat, lon]
                     if Isincell(current_coordinates, cell):
                         writer.writerow(row_to_write)
                         if way == previous_way:
@@ -1352,6 +1355,7 @@ def SecondQ(cell_list):
 
                     # Check to see way crosses cell boundary
                     if way == previous_way and (Isincell(previous_coordinates,cell) or Isincell(current_coordinates,cell)):
+                        print(current_coordinates)
                         boundary_coordinates = Generate_boundary_coordinates(previous_coordinates,current_coordinates,cell)
                         node = "Generated node # %d" % node_id
                         node_id += 1
@@ -1361,14 +1365,14 @@ def SecondQ(cell_list):
                         road_length = Calculate_distance(previous_coordinates,boundary_coordinates)
 
                     # set data for next loop
-                    previous_way, previous_node, previous_lat,previous_lon = data.split()
-                    previous_coordinates = [previous_lat,previous_lon]
+                    previous_way, previous_node, previous_lat,previous_lon = data
+                    previous_coordinates = [float(previous_lat),float(previous_lon)]
 
                 # Calculate road densities
                     total_road_length += road_length
-            with open("Road density analysis.csv", "w+",newline="") as nnfp:
+            with open("Road density analysis.csv", "a",newline="") as nnfp:
                 cell_writer = csv.writer(nnfp)
-                row_to_write = [cell_id,"total road length: %f" % total_road_length]
+                row_to_write = [cell_data,"total road length(km): %f" % total_road_length]
                 cell_writer.writerow(row_to_write)
             cell_id += 1 # Increment cell id
 
@@ -1384,8 +1388,8 @@ def Isincell(node,cell):
 
     lat_list,lon_list = Cell_data_strip(cell)
 
-    lat_node = node[0]
-    lon_node = node[1]
+    lat_node = Decimal(node[0])
+    lon_node = Decimal(node[1])
     min_lat = min(lat_list)
     min_lon = min(lon_list)
     max_lat = max(lat_list)
@@ -1411,8 +1415,10 @@ def Generate_boundary_coordinates(previous_coordinates,current_coordinates, cell
 
     # Unpack data
     cell_lat_list,cell_lon_list = Cell_data_strip(cell)
-    previous_lat,previous_lon = previous_coordinates
-    lat,lon = current_coordinates
+    previous_lat,previous_lon = [float(x) for x in previous_coordinates]
+    lat,lon = [float(x) for x in current_coordinates]
+
+    print(previous_coordinates,current_coordinates)
 
     # Calculate direction agnostic values
     north_south = abs(previous_lon - lon)
@@ -1428,12 +1434,18 @@ def Generate_boundary_coordinates(previous_coordinates,current_coordinates, cell
         if lon > max(cell_lon_list) or lon < min(cell_lon_list): # Check lon outside cell
             point_to_point_cartesian_displacement = north_south
             short_lon = min(map(lambda x: abs(lon - x), cell_lon_list))
+    print(point_to_point_cartesian_displacement,distance)
+    ratio = point_to_point_cartesian_displacement / distance
+    if ratio > 1 :
+        print("here")
+        print(ratio)
+        ratio = 1 - ratio
+    print(ratio)
+    theta = math.acos(ratio) # Calculate angle
 
-    theta = math.acos(point_to_point_cartesian_displacement / distance) # Calculate angle
-
-    short_x = short_lat # Default assume lat is edge of interest
+    short_x = float(short_lat) # Default assume lat is edge of interest
     if point_to_point_cartesian_displacement == north_south: # Check position of point
-        short_x = short_lon
+        short_x = (short_lon)
     short_distance = short_x / math.cos(theta) # Calculate distance to boundary line
     coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, short_distance) # Calculate co-ordinates of boundary point
     return coordinates
@@ -1448,7 +1460,7 @@ def Cell_data_strip(cell):
     """
 
     # Convert data to usable format
-    cell_num = [Decimal(x) for x in cell.split()]
+    cell_num = [float(x) for x in cell.split()]
     lat_list = []
     lon_list = []
     # Generate list of lat and lon
@@ -1465,7 +1477,7 @@ def Cell_data_strip(cell):
 def Calculate_distance(coords_set1, coords_set2):
     """
     This function expects two sets of co-ordinates. It will use the Haversine formula to calculate the distance
-    between the two points.
+    between the two points. Returns the distance in Kilometers
 
     :param prev_coords:
     :param cur_coords:
@@ -1474,8 +1486,8 @@ def Calculate_distance(coords_set1, coords_set2):
 
     radius_of_earth = 6371  # mean value in km from: https://www.movable-type.co.uk/scripts/latlong.html
     # Unpack co-ordinate sets
-    previous_lat, previous_lon = coords_set1
-    current_lat, current_lon = coords_set2
+    previous_lat, previous_lon = [float(x) for x in coords_set1]
+    current_lat, current_lon = [float(x) for x in coords_set2]
     # Haversine formula
     square_of_chord = math.sin(abs(current_lat - previous_lat) / 2) ** 2 + \
                       math.cos(current_lat) * \
@@ -1488,14 +1500,16 @@ def Calculate_distance(coords_set1, coords_set2):
 
 def Calculate_coordinates(start_set,end_set,distance):
 
-    lat_start, lon_start = start_set
-    lat_end, lon_end = end_set
-    x = abs(lat_start-lat_end)
-    y = abs(lon_start-lon_end)
-    mag = math.sqrt((x**2)-(y**2))
+    lat_start, lon_start = [math.degrees(x) for x in start_set]
+    lat_end, lon_end = [math.degrees(x) for x in end_set]
+    x = float(abs(lat_start-lat_end))
+    y = float(abs(lon_start-lon_end))
+    if x == 0 or y == 0:
+        return [lat_start,lon_start]
+    mag = math.sqrt(abs((x**2)-(y**2)))
     unit_vector = (x/mag, y/mag)
-    lat_point = lat_start + distance*unit_vector[0]
-    lon_point = lon_start + distance*unit_vector[1]
+    lat_point = float(lat_start) + distance*unit_vector[0]
+    lon_point = float(lon_start) + distance*unit_vector[1]
     coordinate_set=[lat_point,lon_point]
     return coordinate_set
 
@@ -1521,7 +1535,7 @@ def Filter_csv(version=1, min_distance=None):
 
     print("Beginning filter process %d:" % version)  # Message to user
     if min_distance is None:  # Check if minimum distance is defined
-        min_distance = input("Please specify minimum distance")  # Prompt user for entry
+        min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
 
     with open("Query Result.csv", "r", newline='') as Master_List:  # Open csv file from original query
         with open("Filtered Results version_%d.csv" % version, "w+", newline="") as Child_List:  # Create or truncate csv file to write
@@ -1531,7 +1545,7 @@ def Filter_csv(version=1, min_distance=None):
             previous_coordinates = 0
             count = 0
             meta_data = []
-            previous_loop = [0]
+            previous_loop = [0,0,0,0]
             for mdata in Master_Read:
                 if mdata == []:  # Check if anthing was read
                     continue  # Skip loop
@@ -1544,27 +1558,28 @@ def Filter_csv(version=1, min_distance=None):
                                 mdata.append("Distance from last point (km)")  # Append new column to header
                             if version == 2:
                                 generated_node_count = 0
-                        assert mdata is not None,"Broken master file data"  # Sanity check writing None type to file will result in error
+                        assert mdata is not None,"Broken query data"  # Sanity check writing None type to file will result in error
                         meta_data.append(mdata)  # Add meta data to list
                         count += 1  # Incriment counter
                         continue  # Skip rest of loop
                     if count == 2:
                         Header_write(meta_data, Child_Write)  # Write meta data to file
                         previous_write_meta = mdata[:-2]
-                        previous_coordinates = [math.radians(float(x)) for x in
-                                                mdata[-2:]]  # Unpack and convert lat and lon
+                        previous_loop = [x for x in mdata]  # Unpack and convert lat and lon
                         del count  # Delete count
                         continue  # Skip rest of loop
 
                 current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
+                previous_coordinates = [math.radians(float(x)) for x in previous_loop[2:4]]
                 current_way = mdata[0]
                 previous_way = previous_loop[0]
                 current_node = mdata[1]
-                previous_node = previous_loop[0]
+                previous_node = previous_loop[1]
 
                 # Same node check
+                # print(current_coordinates,previous_coordinates)
                 if previous_coordinates == current_coordinates: # Check for duplicate co-ordinates
-                    if current_node != previous_node: # Check for separate node ids
+                    if current_node != previous_node and "Generated" not in previous_node: # Check for separate node ids
                         raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
                     else:
                         continue # Skip rest of loop
@@ -1584,74 +1599,97 @@ def Filter_csv(version=1, min_distance=None):
 
                     if version == 2: # Check version number
                         if distance > min_distance: # Check if points exceed min distance
+                            print(previous_coordinates,current_coordinates)
                             coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, min_distance)
+                            print(coordinates)
                             node_str = "Generated node # %d" % generated_node_count # save string to write
                             generated_node_count +=1 # incriment generated id
                             # update data to write
                             pretty_list[1] = node_str
+
+                            #This is the error
+                            # ------------------------------------------------------------------------------------------
+
                             pretty_list[-2],pretty_list[-1] = coordinates
+
+                            # ------------------------------------------------------------------------------------------
+
                             # update data for next loop
                             previous_coordinates=coordinates
                             previous_write_meta = mdata[:-2]
                         Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
                 else:
-                    if version ==1:
-                        pretty_list.append(distance)
+                    # if version ==1:
+                    #     pretty_list.append(distance)
                     Child_Write.writerow(pretty_list)
 
                 previous_loop = pretty_list  # Save values for next loop
             #End main loop
 
-            if previous_loop[1] != previous_write_meta[1]: # Check if last values are not written to file
-                Child_Write.writerow(pretty_list) # Write to file
+            # if previous_loop[1] != previous_write_meta[1]: # Check if last values are not written to file
+            #     Child_Write.writerow(pretty_list) # Write to file
 
             print("Filter process complete.")
             return
 
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
+    #
+    # cell_created = False
+    # filter_data = False
+    # cell_cordinates = []
+    # cell_count = 0
+    # for input in sys.argv:
+    #     if "-h" == input:
+    #         Helpfunc()
+    #     if "--help" == input:
+    #         Helpfunc(True)
+    #     if "cell" == input and sys.argv.count("cell") == 1:
+    #         find_index = sys.argv.index(input) +1
+    #         end_index = find_index + 5
+    #         cell_cordinates = [x for x in sys.argv[find_index:end_index]]
+    #         cell_cordinates = " ".join(cell_cordinates)
+    #         # print(cell_cordinates)
+    #         cell_created = True
+    #     if "cell" == input and sys.argv.count("cell") >1 and not cell_created:
+    #         cell_count = sys.argv.index(input, cell_count, len(sys.argv))
+    #         # print(cell_count)
+    #         find_index = cell_count +1
+    #         end_index = find_index + 4
+    #         cell_count = end_index
+    #         cell = [x for x in sys.argv[find_index:end_index]]
+    #         cell = " ".join(cell)
+    #         cell_cordinates.append(cell)
+    #         # print(cell_cordinates)
+    #         # print(len(sys.argv) - cell_count)
+    #         if len(sys.argv) - cell_count < 4:
+    #             cell_created = True
+    #     if "query" == input:
+    #         find_index = sys.argv.index(input)+1
+    #         end_index = find_index + 5
+    #         extent = [x for x in sys.argv[find_index:end_index]]
+    #         extent = ",".join(extent)
+    #         # print(extent)
+    #         PrimaryQ(extent)
+    #     if "filter_version" == input:
+    #         find_index = sys.argv.index(input)+1
+    #         version = int(sys.argv[find_index])
+    #         # print(version)
+    #         filter_data = True
+    #     if "distance" == input:
+    #         find_index = sys.argv.index(input) + 1
+    #         distance = float(sys.argv[find_index])
+    #         # print(distance)
+    #         filter_data = True
+    #
+    # if filter_data:
+    #     Filter_csv(version=version, min_distance=distance)
+    #
+    # if cell_created:
+    #     SecondQ(cell_cordinates)
 
-    cell_created = False
-    filter_data = False
-    cell_cordinates = []
-    cell_count = 0
-    for input in sys.argv:
-        if "-h" == input:
-            Helpfunc()
-        if "--help" == input:
-            Helpfunc(True)
-        if "cell" == input and sys.argv.count("cell") == 1:
-            find_index = sys.argv.index(input) +1
-            end_index = find_index + 5
-            cell_cordinates = [x for x in sys.argv[find_index:end_index]]
-            cell_cordinates = " ".join(cell_cordinates)
-            cell_created = True
-        if "cell" == input and sys.argv.count("cell") >1 and not cell_created:
-            cell_count = sys.argv.index(input, cell_count, len(sys.argv))
-            find_index = cell_count +1
-            end_index = find_index + 5
-            cell = [x for x in sys.argv[find_index:end_index]]
-            cell = " ".join(cell_cordinates)
-            cell_cordinates.append(cell)
-            if len(sys.argv) - cell_count < 5:
-                cell_created = True
-        if "query" == input:
-            find_index = sys.argv.index(input)+1
-            end_index = find_index + 5
-            extent = [x for x in sys.argv[find_index:end_index]]
-            extent = ",".join(extent)
-            PrimaryQ(extent)
-        if "filter_version" == input:
-            find_index = sys.argv.index(input)+1
-            version = sys.argv[find_index]
-            filter_data = True
-        if "distance" == input:
-            find_index = sys.argv.index(input) + 1
-            distance = sys.argv[find_index]
-            filter_data = True
 
-    if filter_data:
-        Filter_csv(version=version,min_distance=distance)
-
-    if cell_created:
-        SecondQ(cell_cordinates)
+    ## Test cases
+    Filter_csv(2,0)
+    # cell_list = ["40.0810 -75.4005 40.0950 -75.3775", "0 5 0 6"]
+    # SecondQ(cell_list)
