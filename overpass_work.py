@@ -1448,7 +1448,7 @@ def Cell_data_strip(cell):
     """
 
     # Convert data to usable format
-    cell_num = [Decimal(x) for x in cell]
+    cell_num = [Decimal(x) for x in cell.split()]
     lat_list = []
     lon_list = []
     # Generate list of lat and lon
@@ -1609,87 +1609,49 @@ def Filter_csv(version=1, min_distance=None):
             return
 
 
-def Filter():
-    """
-    User interface module.
-
-    :return:
-    """
-
-
-    version = int(input("select filter version >>>"))
-    distance = float(input("input minimum distance >>>"))
-    Filter_csv(version=version, min_distance=distance)
-
-    return Filter_csv(version=version,min_distance=distance)
-
-
-def Cell_list_setup():
-    """
-    Set up function to assist user in generating refined query data.
-
-    :return:
-    """
-
-    print("This is the setup menu for generating a refined query")
-    cell_list = []
-    while True:
-        coordinate_pairs = input("Input Corner co-ordinate pairs\nseparate each co-ordinate with a space >>>").split()
-        cell_list.append(coordinate_pairs)
-        user = input("Input another cell? [Y/N] >>>")
-        if user =="N":
-            break
-    return cell_list
-
-
-def User_input_error():
-    print("Invalid input!")
-
-
-def Check_user(user_input):
-
-    if user_input == "exit":
-        return None
-    if user_input == "help":
-        return Helpfunc()
-    if user_input != "Y" or user_input != "N":
-        return User_input_error()
-    return user_input
-
-def Main_interface():
-    """
-    This function is the main interface of the software. It will walk the user through the steps of analysis.
-
-    :return:
-    """
-
-    while True:
-        print("type 'exit' at anytime to exit the program\ntype 'help' at anytime to see the help menu")
-        user = input("Input extent to query >>>")
-        if Check_user(user) is None:
-            break
-        extent = user
-        PrimaryQ(extent)
-        Filter()
-        user = input("Filter again? [Y/N] >>>")
-        if Check_user(user) is None:
-            break
-        if user == "Y":
-            Filter()
-        user = input("Refine search and calculate road density? [Y/N] >>>")
-        if Check_user(user) is None:
-            break
-        if user == "Y":
-            cell_list = Cell_list_setup()
-            SecondQ(cell_list)
-        user = input("you may exit now or press any key to query again >>>")
-        if Check_user(user) is None:
-            break
-
-
-
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
 
-    print("Salzarulo Road Density analysis tool")
-    Main_interface()
-    print("Goodbye")
+    cell_created = False
+    filter_data = False
+    cell_cordinates = []
+    cell_count = 0
+    for input in sys.argv:
+        if "-h" == input:
+            Helpfunc()
+        if "--help" == input:
+            Helpfunc(True)
+        if "cell" == input and sys.argv.count("cell") == 1:
+            find_index = sys.argv.index(input) +1
+            end_index = find_index + 5
+            cell_cordinates = [x for x in sys.argv[find_index:end_index]]
+            cell_cordinates = " ".join(cell_cordinates)
+            cell_created = True
+        if "cell" == input and sys.argv.count("cell") >1 and not cell_created:
+            cell_count = sys.argv.index(input, cell_count, len(sys.argv))
+            find_index = cell_count +1
+            end_index = find_index + 5
+            cell = [x for x in sys.argv[find_index:end_index]]
+            cell = " ".join(cell_cordinates)
+            cell_cordinates.append(cell)
+            if len(sys.argv) - cell_count < 5:
+                cell_created = True
+        if "query" == input:
+            find_index = sys.argv.index(input)+1
+            end_index = find_index + 5
+            extent = [x for x in sys.argv[find_index:end_index]]
+            extent = ",".join(extent)
+            PrimaryQ(extent)
+        if "filter_version" == input:
+            find_index = sys.argv.index(input)+1
+            version = sys.argv[find_index]
+            filter_data = True
+        if "distance" == input:
+            find_index = sys.argv.index(input) + 1
+            distance = sys.argv[find_index]
+            filter_data = True
+
+    if filter_data:
+        Filter_csv(version=version,min_distance=distance)
+
+    if cell_created:
+        SecondQ(cell_cordinates)
