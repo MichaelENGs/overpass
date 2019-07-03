@@ -1,7 +1,7 @@
 ## Project: Skynet V2
 ## Phase: N/A Road Data From Overpass
 ## Michael Salzarulo
-## Description: Version 1.3
+## Description: Version 1.4
 # Intended to be used as a command line tool. This script will automatically query the overpass api and
 # return the desired data via csv file. This software comes equip with an interface to swiftly guide the user through
 # process of generating and analyzing data.
@@ -12,13 +12,13 @@ import xml.etree.ElementTree as ET
 import csv, os, sys, math, re
 from urllib.request import urlopen
 from urllib.error import HTTPError
-from xml.sax import handler,make_parser
+from xml.sax import handler, make_parser
 from decimal import Decimal
 from datetime import datetime
 from collections import OrderedDict
 
-sys.setrecursionlimit(2000) # Heuristic value
-#-----------------------------------------------------------------------------------------------------------------------
+sys.setrecursionlimit(2000)  # Heuristic value
+# -----------------------------------------------------------------------------------------------------------------------
 ## The following is ammended from the original version found at:
 # https://github.com/DinoTools/python-overpy/blob/master/overpy/__init__.py
 
@@ -31,7 +31,6 @@ GLOBAL_ATTRIBUTE_MODIFIERS = {
     "version": int,
     "visible": lambda v: v.lower() == "true"
 }
-
 
 XML_PARSER_DOM = 1
 XML_PARSER_SAX = 2
@@ -399,6 +398,7 @@ class Element(object):
         center_lon = Decimal(center_lon)
         return center_lat, center_lon
 
+
 class Node(Element):
     """
     Class to represent an element of type node
@@ -469,6 +469,7 @@ class Node(Element):
             attributes[n] = v
 
         return cls(node_id=node_id, lat=lat, lon=lon, tags=tags, attributes=attributes, result=result)
+
 
 class Way(Element):
     """
@@ -614,6 +615,7 @@ class Way(Element):
         return cls(way_id=way_id, center_lat=center_lat, center_lon=center_lon,
                    attributes=attributes, node_ids=node_ids, tags=tags, result=result)
 
+
 class Relation(Element):
     """
     Class to represent an element of type relation
@@ -703,6 +705,7 @@ class Relation(Element):
             tags=tags,
             result=result
         )
+
 
 class Area(Element):
     """
@@ -832,6 +835,7 @@ class RelationMember(object):
             result=result
         )
 
+
 class RelationNode(RelationMember):
     _type_value = "node"
 
@@ -840,6 +844,7 @@ class RelationNode(RelationMember):
 
     def __repr__(self):
         return "<overpy.RelationNode ref={} role={}>".format(self.ref, self.role)
+
 
 class RelationWay(RelationMember):
     _type_value = "way"
@@ -859,6 +864,7 @@ class RelationWayGeometryValue(object):
     def __repr__(self):
         return "<overpy.RelationWayGeometryValue lat={} lon={}>".format(self.lat, self.lon)
 
+
 class RelationRelation(RelationMember):
     _type_value = "relation"
 
@@ -867,6 +873,7 @@ class RelationRelation(RelationMember):
 
     def __repr__(self):
         return "<overpy.RelationRelation ref={} role={}>".format(self.ref, self.role)
+
 
 class RelationArea(RelationMember):
     _type_value = "area"
@@ -1119,20 +1126,20 @@ class Salzarulo_Overpass_Query(object):
 
     """
 
-    default_url="http://overpass-api.de/api/interpreter"
+    default_url = "http://overpass-api.de/api/interpreter"
 
     def __init__(self, read_chunk_size=4096, url=None):
-        self.url=self.default_url
+        self.url = self.default_url
         if url is not None:
-            #url = input("Please select alternate url to query")
+            # url = input("Please select alternate url to query")
             self.url = url
         self.read_chunck_size = read_chunk_size
 
-    def query(self,query):
-        if not isinstance(query,bytes):
+    def query(self, query):
+        if not isinstance(query, bytes):
             query = query.encode("utf-8")
         try:
-            f = urlopen(self.url,query)
+            f = urlopen(self.url, query)
         except HTTPError as e:
             f = e
         response = f.read(self.read_chunck_size)
@@ -1173,7 +1180,6 @@ class Salzarulo_Overpass_Query(object):
 
 
 def Helpfunc(verbose=False):
-    #TODO: Update this function with appropriate guidence
     """
     This function is the help option to explain to the user how to use the program. The message can be viewed in a
     verbose form if specified by the user.
@@ -1183,13 +1189,28 @@ def Helpfunc(verbose=False):
     """
 
     if verbose:
-        print("# Intended to be used as a command line tool. This script will query overpass api with a user defined \
-               extent and output a csv file in the form of Road,Node,Lat,Lon.")
-        print("Arguments:\n")
-        print("extent(s w n e) Enter the extent of the boundary to be queried with the latitude and longitude \
-        corresponding to south west north east in that order.")
+        message = """
+        This script is a command line tool that will query overpass api with a user defined extent and output a csv file in the form of Road,Node,Lat,Lon. It can then filter the data and preform analysis on the data.\n\n
+        overpass_work.py query 40.0853,-75.4005,40.1186,-75.3549                 Initialize an overpass api query
+        overpass_work.py filter_version 2 distance .05                           Filter the data from the initial overpass api query and accept a user specified distance
+        overpass_work.py cell 40.08 -75.4 40.09 -75.38                           Run the refined query and analyze data inside defined cell 
+        overpass_work.py cell 40.08 -75.4 40.09 -75.38 cell 50 -76 51 -76.5      Generate a list of cells to be analyzed\n\n
+        The filter and cell methods of this tool expect that a query to the overpass api has already been made and stored.
+        Future iteration of this tool will allow for cells to be read through csv files.
+        """
+        print(message)
+        verbose = False
     if not verbose:
-        print("Input arguments:\nextent([s][w][n][e])")
+        message = """
+        overpass_work.py [options] {co-ordinates: (min lat)(min lon)(max lat)(max lon)}
+        supported options:
+        -h or --help                 Display help message '--help' method will display example program calls
+        query {co-ordinates}         This will trigger a query of the overpass api and save the results
+        filter_version {distance}    filter the results of the query optionally specify a minimum distance in kilometers where the default is 0
+        cell {co-ordinates}          trigger a refined analysis of the original query with in the specified plane. Additionally multiple cells 
+                                     can be defined with a single execution.
+        """
+        print(message)
 
 
 def Header_write(header, csvobj):
@@ -1263,7 +1284,8 @@ def Find_mid_points(query_result, csvobj, write=True):
     road_name = way.tags["name"]  # Store road name
     # mid_lat, mid_lon = Find_mid_lat_lon(way.nodes)  # Calculate midpoints of lat and lon
     for node in way.nodes:
-        val_list = [way_id + " " + road_name, node.id, node.lat, node.lon]  # Store values in list with desired formatting
+        val_list = [way_id + " " + road_name, node.id, node.lat,
+                    node.lon]  # Store values in list with desired formatting
         if write:
             csvobj.writerow(val_list)  # Write list to csv file
         else:
@@ -1300,7 +1322,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
         header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
         meta_data = [["extent"] + extent.split(), header]  # Store meta data as list
-        #Header_write(meta_data[1], writer)  # Write meta data to file
+        # Header_write(meta_data[1], writer)  # Write meta data to file
         writer.writerow(header)
         Find_mid_points(result.ways, writer)  # Recursive function to write desired data
     print("File Generated in %s" % os.getcwd())  # Message to user
@@ -1317,30 +1339,37 @@ def SecondQ(cell_list):
     :return:
     """
 
+    more_loops = True
     with open("Cell separated data.csv", "w+", newline="") as nfp:
         writer = csv.writer(nfp)
-        cell_id = 0 # initialize cell id
-        node_id = 0 # initialize node id
+        cell_id = 0  # initialize cell id
+        node_id = 0  # initialize node id
         previous_node = None
         previous_way = None
         previous_coordinates = None
         previous_lon = None
         previous_lat = None
         for cell in cell_list:  # loop cell by cell
+            if isinstance(cell_list, str):
+                cell = cell_list
+                more_loops = False
             road_length = 0
             total_road_length = 0
             cell_data = cell + "_" + str(cell_id)
             # open data
+
             with open("Filtered results version_2.csv", "r") as fp:
                 reader = csv.reader(fp)
                 # read data
                 for data in reader:
+                    print(data)
                     if data == []:
                         continue
                     # Create and write header
-                    if "Lat" in data:
+                    if "Road #/id" in data:
+                        print("here")
                         pretty_list = [x for x in data]
-                        pretty_list.insert(0,"cell id/bbox")
+                        pretty_list.insert(0, "cell id/bbox")
                         writer.writerow(pretty_list)
                         continue
 
@@ -1351,33 +1380,37 @@ def SecondQ(cell_list):
                     if Isincell(current_coordinates, cell):
                         writer.writerow(row_to_write)
                         if way == previous_way:
-                            road_length = Calculate_distance(previous_coordinates,current_coordinates)
+                            road_length = Calculate_distance(previous_coordinates, current_coordinates)
 
                     # Check to see way crosses cell boundary
-                    if way == previous_way and (Isincell(previous_coordinates,cell) or Isincell(current_coordinates,cell)):
-                        print(current_coordinates)
-                        boundary_coordinates = Generate_boundary_coordinates(previous_coordinates,current_coordinates,cell)
+                    if way == previous_way and \
+                            previous_coordinates != current_coordinates and \
+                            (Isincell(previous_coordinates, cell) or Isincell(current_coordinates, cell)):
+                        boundary_coordinates = Generate_boundary_coordinates(previous_coordinates, current_coordinates,
+                                                                             cell)
                         node = "Generated node # %d" % node_id
                         node_id += 1
-                        lat,lon = boundary_coordinates
-                        row_to_write = [cell_data,way,node,lat,lon]
+                        lat, lon = boundary_coordinates
+                        row_to_write = [cell_data, way, node, lat, lon]
                         writer.writerow(row_to_write)
-                        road_length = Calculate_distance(previous_coordinates,boundary_coordinates)
+                        road_length = Calculate_distance(previous_coordinates, boundary_coordinates)
 
                     # set data for next loop
-                    previous_way, previous_node, previous_lat,previous_lon = data
-                    previous_coordinates = [float(previous_lat),float(previous_lon)]
+                    previous_way, previous_node, previous_lat, previous_lon = data
+                    previous_coordinates = [float(previous_lat), float(previous_lon)]
 
-                # Calculate road densities
+                    # Calculate road densities
                     total_road_length += road_length
-            with open("Road density analysis.csv", "a",newline="") as nnfp:
+            with open("Road density analysis.csv", "a", newline="") as nnfp:
                 cell_writer = csv.writer(nnfp)
-                row_to_write = [cell_data,"total road length(km): %f" % total_road_length]
+                row_to_write = [cell_data, "total road length(km): %f" % total_road_length]
                 cell_writer.writerow(row_to_write)
-            cell_id += 1 # Increment cell id
+            cell_id += 1  # Increment cell id
+            if not more_loops:
+                return
 
 
-def Isincell(node,cell):
+def Isincell(node, cell):
     """
     This function will organize the data in the cell and return a boolean value based on in the point falls in the cell.
 
@@ -1386,7 +1419,7 @@ def Isincell(node,cell):
     :return:
     """
 
-    lat_list,lon_list = Cell_data_strip(cell)
+    lat_list, lon_list = Cell_data_strip(cell)
 
     lat_node = Decimal(node[0])
     lon_node = Decimal(node[1])
@@ -1395,12 +1428,12 @@ def Isincell(node,cell):
     max_lat = max(lat_list)
     max_lon = max(lon_list)
     # check lat value in bounds
-    if lat_node > min_lat and lat_node<max_lat and lon_node>min_lon and lon_node<max_lon:
+    if lat_node > min_lat and lat_node < max_lat and lon_node > min_lon and lon_node < max_lon:
         return True
     return False
 
 
-def Generate_boundary_coordinates(previous_coordinates,current_coordinates, cell):
+def Generate_boundary_coordinates(previous_coordinates, current_coordinates, cell):
     """
     This function will generate coordinates of a point that lies on the boundary of the given cell using the law of
     similar right triangles.
@@ -1411,43 +1444,38 @@ def Generate_boundary_coordinates(previous_coordinates,current_coordinates, cell
     :return:
     """
 
-    distance = Calculate_distance(previous_coordinates, current_coordinates) # Calculate distance between points
+    distance = Calculate_distance(previous_coordinates, current_coordinates)  # Calculate distance between points
 
     # Unpack data
-    cell_lat_list,cell_lon_list = Cell_data_strip(cell)
-    previous_lat,previous_lon = [float(x) for x in previous_coordinates]
-    lat,lon = [float(x) for x in current_coordinates]
-
-    print(previous_coordinates,current_coordinates)
+    cell_lat_list, cell_lon_list = Cell_data_strip(cell)
+    previous_lat, previous_lon = [float(x) for x in previous_coordinates]
+    lat, lon = [float(x) for x in current_coordinates]
 
     # Calculate direction agnostic values
     north_south = abs(previous_lon - lon)
     east_west = abs(previous_lat - lat)
-    point_to_point_cartesian_displacement = east_west # Default value assumes current point outside cell
-    short_lat = min(map(lambda x: abs(lat-x),cell_lat_list)) # Displacement to boundary
-    if previous_lon > max(cell_lon_list) or previous_lon < min(cell_lon_list): # Check if lon vale outside cell
+    point_to_point_cartesian_displacement = east_west  # Default value assumes current point outside cell
+    short_lat = min(map(lambda x: abs(lat - x), cell_lat_list))  # Displacement to boundary
+    if previous_lon > max(cell_lon_list) or previous_lon < min(cell_lon_list):  # Check if lon vale outside cell
         point_to_point_cartesian_displacement = north_south
-        short_lon = min(map(lambda x: abs(lon-x), cell_lon_list))
-    if Isincell(current_coordinates, cell): # Check if current point in cell
+        short_lon = min(map(lambda x: abs(lon - x), cell_lon_list))
+    if Isincell(current_coordinates, cell):  # Check if current point in cell
         point_to_point_cartesian_displacement = east_west
         short_lon = min(map(lambda x: abs(lat - x), cell_lon_list))
-        if lon > max(cell_lon_list) or lon < min(cell_lon_list): # Check lon outside cell
+        if lon > max(cell_lon_list) or lon < min(cell_lon_list):  # Check lon outside cell
             point_to_point_cartesian_displacement = north_south
             short_lon = min(map(lambda x: abs(lon - x), cell_lon_list))
-    print(point_to_point_cartesian_displacement,distance)
     ratio = point_to_point_cartesian_displacement / distance
-    if ratio > 1 :
-        print("here")
-        print(ratio)
+    if ratio > 1:
         ratio = 1 - ratio
-    print(ratio)
-    theta = math.acos(ratio) # Calculate angle
+    theta = math.acos(ratio)  # Calculate angle
 
-    short_x = float(short_lat) # Default assume lat is edge of interest
-    if point_to_point_cartesian_displacement == north_south: # Check position of point
+    short_x = float(short_lat)  # Default assume lat is edge of interest
+    if point_to_point_cartesian_displacement == north_south:  # Check position of point
         short_x = (short_lon)
-    short_distance = short_x / math.cos(theta) # Calculate distance to boundary line
-    coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, short_distance) # Calculate co-ordinates of boundary point
+    short_distance = short_x / math.cos(theta)  # Calculate distance to boundary line
+    coordinates = Calculate_coordinates(previous_coordinates, current_coordinates,
+                                        short_distance)  # Calculate co-ordinates of boundary point
     return coordinates
 
 
@@ -1465,13 +1493,12 @@ def Cell_data_strip(cell):
     lon_list = []
     # Generate list of lat and lon
     for x in range(len(cell_num)):
-        if x%2 == 0:
+        if x % 2 == 0:
             lat_list.append(cell_num[x])
         else:
             lon_list.append(cell_num[x])
 
-
-    return [lat_list,lon_list]
+    return [lat_list, lon_list]
 
 
 def Calculate_distance(coords_set1, coords_set2):
@@ -1494,23 +1521,38 @@ def Calculate_distance(coords_set1, coords_set2):
                       math.cos(previous_lat) * \
                       math.sin(abs(current_lon - previous_lon) / 2) ** 2
     angular_distance = 2 * math.atan2(math.sqrt(square_of_chord), math.sqrt(1 - square_of_chord))
-    distance_between_points = radius_of_earth * angular_distance
+    distance_between_points = abs(radius_of_earth * angular_distance)
     return distance_between_points
 
 
-def Calculate_coordinates(start_set,end_set,distance):
-
+def Calculate_coordinates(start_set, end_set, distance):
     lat_start, lon_start = [math.degrees(x) for x in start_set]
     lat_end, lon_end = [math.degrees(x) for x in end_set]
-    x = float(abs(lat_start-lat_end))
-    y = float(abs(lon_start-lon_end))
-    if x == 0 or y == 0:
-        return [lat_start,lon_start]
-    mag = math.sqrt(abs((x**2)-(y**2)))
-    unit_vector = (x/mag, y/mag)
-    lat_point = float(lat_start) + distance*unit_vector[0]
-    lon_point = float(lon_start) + distance*unit_vector[1]
-    coordinate_set=[lat_point,lon_point]
+    x = float(abs(lat_start - lat_end))
+    y = float(abs(lon_start - lon_end))
+    mag = math.sqrt(abs((x ** 2) - (y ** 2)))
+    if mag == 0:
+        return [lon_start, lon_start]
+    if x == 0 and y != 0:
+        mag = math.sqrt((y ** 2))
+        unit_vector = (y / mag)
+        lat_point = float(lat_start)
+        lon_point = float(lon_start) + distance * unit_vector
+        coordinate_set = [lat_point, lon_point]
+        return coordinate_set
+    if y == 0 and x != 0:
+        mag = math.sqrt((x ** 2))
+        unit_vector = (x / mag)
+        lat_point = float(lat_start) + distance * unit_vector
+        lon_point = float(lon_start)
+        coordinate_set = [lat_point, lon_point]
+        return coordinate_set
+    if x == 0 and y == 0:
+        return [lat_start, lon_start]
+    unit_vector = (x / mag, y / mag)
+    lat_point = float(lat_start) + distance * unit_vector[0]
+    lon_point = float(lon_start) + distance * unit_vector[1]
+    coordinate_set = [lat_point, lon_point]
     return coordinate_set
 
 
@@ -1538,14 +1580,15 @@ def Filter_csv(version=1, min_distance=None):
         min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
 
     with open("Query Result.csv", "r", newline='') as Master_List:  # Open csv file from original query
-        with open("Filtered Results version_%d.csv" % version, "w+", newline="") as Child_List:  # Create or truncate csv file to write
+        with open("Filtered Results version_%d.csv" % version, "w+",
+                  newline="") as Child_List:  # Create or truncate csv file to write
             Master_Read = csv.reader(Master_List)  # Create read object
             Child_Write = csv.writer(Child_List)  # Create write object
 
             previous_coordinates = 0
-            count = 0
+            count = 1
             meta_data = []
-            previous_loop = [0,0,0,0]
+            previous_loop = [0, 0, 0, 0]
             for mdata in Master_Read:
                 if mdata == []:  # Check if anthing was read
                     continue  # Skip loop
@@ -1558,138 +1601,133 @@ def Filter_csv(version=1, min_distance=None):
                                 mdata.append("Distance from last point (km)")  # Append new column to header
                             if version == 2:
                                 generated_node_count = 0
-                        assert mdata is not None,"Broken query data"  # Sanity check writing None type to file will result in error
+                        assert mdata is not None, "Broken query data"  # Sanity check writing None type to file will result in error
                         meta_data.append(mdata)  # Add meta data to list
                         count += 1  # Incriment counter
                         continue  # Skip rest of loop
                     if count == 2:
                         Header_write(meta_data, Child_Write)  # Write meta data to file
-                        previous_write_meta = mdata[:-2]
-                        previous_loop = [x for x in mdata]  # Unpack and convert lat and lon
+                        previous_loop = [x for x in mdata]  # Unpack data for first iteration
                         del count  # Delete count
                         continue  # Skip rest of loop
 
+                # Organize data
                 current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
                 previous_coordinates = [math.radians(float(x)) for x in previous_loop[2:4]]
                 current_way = mdata[0]
                 previous_way = previous_loop[0]
                 current_node = mdata[1]
                 previous_node = previous_loop[1]
-
-                # Same node check
-                # print(current_coordinates,previous_coordinates)
-                if previous_coordinates == current_coordinates: # Check for duplicate co-ordinates
-                    if current_node != previous_node and "Generated" not in previous_node: # Check for separate node ids
-                        raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
-                    else:
-                        continue # Skip rest of loop
-
                 distance = Calculate_distance(previous_coordinates,
                                               current_coordinates)  # Call distance calculation function
                 pretty_list = [x for x in mdata]  # Copy list values
 
-                if current_way == previous_way: # Check for same road
+                # Same node check
+                if previous_coordinates == current_coordinates:  # Check for duplicate co-ordinates
+                    if current_node != previous_node and "Generated" not in previous_node:  # Check for separate node ids
+                        raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
+                    else:
+                        continue  # Skip rest of loop
+
+                # Begin filter process
+                if current_way == previous_way:  # Check for same road
                     if version == 1:  # Check version number
                         # Initialize data values
                         pretty_list.append(distance)  # Append to list
                         if distance > min_distance:  # Check if calculated distance exceeds minimum distance
-                            previous_write_meta = mdata[:-2] # Save meta data
                             previous_coordinates = current_coordinates  # Set values for next loop
                             Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
+                            saved_node = pretty_list[1]
 
-                    if version == 2: # Check version number
-                        if distance > min_distance: # Check if points exceed min distance
-                            print(previous_coordinates,current_coordinates)
+                    # Higher priority
+                    if version == 2:  # Check version number
+                        if distance > min_distance:  # Check if points exceed min distance
+                            pretty_list_generated = [x for x in pretty_list]
                             coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, min_distance)
-                            print(coordinates)
-                            node_str = "Generated node # %d" % generated_node_count # save string to write
-                            generated_node_count +=1 # incriment generated id
-                            # update data to write
-                            pretty_list[1] = node_str
-
-                            #This is the error
-                            # ------------------------------------------------------------------------------------------
-
-                            pretty_list[-2],pretty_list[-1] = coordinates
-
-                            # ------------------------------------------------------------------------------------------
-
-                            # update data for next loop
-                            previous_coordinates=coordinates
-                            previous_write_meta = mdata[:-2]
+                            node_str = "Generated node # %d" % generated_node_count  # save string to write
+                            generated_node_count += 1  # incriment generated id
+                            pretty_list_generated[1] = node_str
+                            pretty_list_generated[-2], pretty_list_generated[-1] = coordinates
+                            Child_Write.writerow(pretty_list_generated)
                         Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
+                        saved_node = pretty_list[1]
+                        previous_coordinates = [math.degrees(x) for x in previous_coordinates]
+                        if previous_coordinates == coordinates:
+                            pretty_list[-2:] = [math.degrees(x) for x in current_coordinates]
                 else:
-                    # if version ==1:
-                    #     pretty_list.append(distance)
+                    if saved_node != previous_node:
+                        Child_Write.writerow([previous_way, previous_node, *previous_coordinates])
                     Child_Write.writerow(pretty_list)
 
                 previous_loop = pretty_list  # Save values for next loop
-            #End main loop
-
-            # if previous_loop[1] != previous_write_meta[1]: # Check if last values are not written to file
-            #     Child_Write.writerow(pretty_list) # Write to file
+            # End main loop
 
             print("Filter process complete.")
             return
 
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
-    #
-    # cell_created = False
-    # filter_data = False
-    # cell_cordinates = []
-    # cell_count = 0
-    # for input in sys.argv:
-    #     if "-h" == input:
-    #         Helpfunc()
-    #     if "--help" == input:
-    #         Helpfunc(True)
-    #     if "cell" == input and sys.argv.count("cell") == 1:
-    #         find_index = sys.argv.index(input) +1
-    #         end_index = find_index + 5
-    #         cell_cordinates = [x for x in sys.argv[find_index:end_index]]
-    #         cell_cordinates = " ".join(cell_cordinates)
-    #         # print(cell_cordinates)
-    #         cell_created = True
-    #     if "cell" == input and sys.argv.count("cell") >1 and not cell_created:
-    #         cell_count = sys.argv.index(input, cell_count, len(sys.argv))
-    #         # print(cell_count)
-    #         find_index = cell_count +1
-    #         end_index = find_index + 4
-    #         cell_count = end_index
-    #         cell = [x for x in sys.argv[find_index:end_index]]
-    #         cell = " ".join(cell)
-    #         cell_cordinates.append(cell)
-    #         # print(cell_cordinates)
-    #         # print(len(sys.argv) - cell_count)
-    #         if len(sys.argv) - cell_count < 4:
-    #             cell_created = True
-    #     if "query" == input:
-    #         find_index = sys.argv.index(input)+1
-    #         end_index = find_index + 5
-    #         extent = [x for x in sys.argv[find_index:end_index]]
-    #         extent = ",".join(extent)
-    #         # print(extent)
-    #         PrimaryQ(extent)
-    #     if "filter_version" == input:
-    #         find_index = sys.argv.index(input)+1
-    #         version = int(sys.argv[find_index])
-    #         # print(version)
-    #         filter_data = True
-    #     if "distance" == input:
-    #         find_index = sys.argv.index(input) + 1
-    #         distance = float(sys.argv[find_index])
-    #         # print(distance)
-    #         filter_data = True
-    #
-    # if filter_data:
-    #     Filter_csv(version=version, min_distance=distance)
-    #
-    # if cell_created:
-    #     SecondQ(cell_cordinates)
 
+    ## Comment to debug using test cases
 
+    cell_created = False
+    filter_data = False
+    cell_cordinates = []
+    cell_count = 0
+    for input in sys.argv:
+        if "-h" == input:
+            Helpfunc()
+        if "--help" == input:
+            Helpfunc(True)
+        if "cell" == input and sys.argv.count("cell") == 1:
+            find_index = sys.argv.index(input) + 1
+            end_index = find_index + 5
+            cell_cordinates = [x for x in sys.argv[find_index:end_index]]
+            cell_cordinates = " ".join(cell_cordinates)
+            # print(cell_cordinates)
+            cell_created = True
+        if "cell" == input and sys.argv.count("cell") > 1 and not cell_created:
+            cell_count = sys.argv.index(input, cell_count, len(sys.argv))
+            # print(cell_count)
+            find_index = cell_count + 1
+            end_index = find_index + 4
+            cell_count = end_index
+            cell = [x for x in sys.argv[find_index:end_index]]
+            cell = " ".join(cell)
+            cell_cordinates.append(cell)
+            # print(cell_cordinates)
+            # print(len(sys.argv) - cell_count)
+            if len(sys.argv) - cell_count < 4:
+                cell_created = True
+        if "query" == input:
+            find_index = sys.argv.index(input) + 1
+            end_index = find_index + 5
+            extent = [x for x in sys.argv[find_index:end_index]]
+            extent = ",".join(extent)
+            # print(extent)
+            PrimaryQ(extent)
+        if "filter_version" == input:
+            find_index = sys.argv.index(input) + 1
+            version = int(sys.argv[find_index])
+            # print(version)
+            filter_data = True
+        if "distance" == input:
+            find_index = sys.argv.index(input) + 1
+            distance = float(sys.argv[find_index])
+            # print(distance)
+            filter_data = True
+
+    if filter_data:
+        if "distance" not in dir():
+            distance = 0
+        Filter_csv(version=version, min_distance=distance)
+
+    if cell_created:
+        SecondQ(cell_cordinates)
+
+    ## uncomment to test basic cases
     ## Test cases
-    Filter_csv(2,0)
+    # # Filter_csv(1,0)
     # cell_list = ["40.0810 -75.4005 40.0950 -75.3775", "0 5 0 6"]
+    # cell_list = "0 5 0 6"
     # SecondQ(cell_list)
