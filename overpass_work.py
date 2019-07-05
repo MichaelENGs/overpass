@@ -1206,9 +1206,10 @@ def Helpfunc(verbose=False):
         supported options:
         -h or --help                 Display help message '--help' method will display example program calls
         query {co-ordinates}         This will trigger a query of the overpass api and save the results
-        filter_version {distance}    filter the results of the query optionally specify a minimum distance in kilometers where the default is 0
-        cell {co-ordinates}          trigger a refined analysis of the original query with in the specified plane. Additionally multiple cells 
-                                     can be defined with a single execution.
+        filter_version {distance}    Filter the results of the query optionally specify a minimum distance in kilometers where the default is 0
+        cell {co-ordinates|file}     Trigger a refined analysis of the original query with in the specified plane. Additionally multiple cells 
+                                     can be defined with a single execution. Alternatively a file containing multiple cell co-ordinates can be
+                                     specified at run time.
         """
         print(message)
 
@@ -1362,12 +1363,12 @@ def SecondQ(cell_list):
                 reader = csv.reader(fp)
                 # read data
                 for data in reader:
-                    print(data)
+                    #print(data)
                     if data == []:
                         continue
                     # Create and write header
                     if "Road #/id" in data:
-                        print("here")
+                        # print("here")
                         pretty_list = [x for x in data]
                         pretty_list.insert(0, "cell id/bbox")
                         writer.writerow(pretty_list)
@@ -1666,9 +1667,40 @@ def Filter_csv(version=1, min_distance=None):
             return
 
 
-if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
+def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,length_of_reader=None):
+    """
+    This function will support the generation of a cell list via the input file.
 
-    ## Comment to debug using test cases
+    :param cell_file:
+    :param csvobj:
+    :param cell_list:
+    :param reader:
+    :param length_of_reader:
+    :return:
+    """
+
+    if csvobj is None:
+        fp = open(cell_file,"r")
+        reader = csv.reader(fp)
+        length_of_reader = sum(1 for row in reader)
+        fp.close()
+        del reader
+        fp = open(cell_file, "r")
+        reader = csv.reader(fp)
+    for data in reader:
+        if data == []:
+            continue
+        formatted_data = " ".join(data)
+        cell_list.append(formatted_data)
+        index_in_reader = reader.line_num + 1
+        if length_of_reader - index_in_reader > 0:
+            return Generate_cell_list(cell_list, reader[1:])
+    fp.close()
+    del reader
+    return cell_list
+
+
+if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
 
     cell_created = False
     filter_data = False
@@ -1681,10 +1713,14 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             Helpfunc(True)
         if "cell" == input and sys.argv.count("cell") == 1:
             find_index = sys.argv.index(input) + 1
-            end_index = find_index + 5
-            cell_cordinates = [x for x in sys.argv[find_index:end_index]]
-            cell_cordinates = " ".join(cell_cordinates)
-            # print(cell_cordinates)
+            if sys.argv[find_index][-4:] == ".csv":
+                print("Generating cell list from file")
+                cell_cordinates = Generate_cell_list(sys.argv[find_index])
+            else:
+                end_index = find_index + 5
+                cell_cordinates = [x for x in sys.argv[find_index:end_index]]
+                cell_cordinates = " ".join(cell_cordinates)
+                # print(cell_cordinates)
             cell_created = True
         if "cell" == input and sys.argv.count("cell") > 1 and not cell_created:
             cell_count = sys.argv.index(input, cell_count, len(sys.argv))
@@ -1725,9 +1761,9 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     if cell_created:
         SecondQ(cell_cordinates)
 
-    ## uncomment to test basic cases
-    ## Test cases
-    # # Filter_csv(1,0)
-    # cell_list = ["40.0810 -75.4005 40.0950 -75.3775", "0 5 0 6"]
-    # cell_list = "0 5 0 6"
-    # SecondQ(cell_list)
+    ##   These are some example program calls that have been configured
+    #     overpass_work.py --help                                                  Show the help message
+    #     overpass_work.py query 40.0853,-75.4005,40.1186,-75.3549                 Initialize an overpass api query
+    #     overpass_work.py filter_version 2 distance .05                           Filter the data from the initial overpass api query and accept a user specified distance
+    #     overpass_work.py cell 40.08 -75.4 40.09 -75.38                           Run the refined query and analyze data inside defined cell
+    #     overpass_work.py cell 40.08 -75.4 40.09 -75.38 cell 50 -76 51 -76.5      Generate a list of cells to be analyzed\n\n
