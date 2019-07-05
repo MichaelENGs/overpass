@@ -1699,6 +1699,103 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
     del reader
     return cell_list
 
+#TODO: add method to be accepted by command line input
+def Present():
+
+
+    # open query meta data and sort
+    # I need extent of query
+    # I need cell of query
+    # generate 4 corners from extent
+    # with open("analysis_meta.txt","r") as fp:
+    #     meta_data = fp.read()
+    #     for data in meta_data:
+    #         extent = data
+
+    # generate bbox kml file
+    bbox = """
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--UNCLASSIFIED-->
+<kml xmlns="http://www.opengis.net/kml/2.2">
+	<Placemark>
+	<Style id="bbox">
+	  <LineStyle>
+		<width>5</width>
+		<altitudeMode>relativeToSeaFloor</altitudeMode>
+		<color>ff000000</color>
+		<color>normal</color>
+	  </LineStyle>
+	 </Style>
+	  <name>Bounding Box</name>
+	  <LookAt>
+		<longitude>-75.4005</longitude>
+		<latitude>40.853</latitude>
+		<tilt>0</tilt>
+		<range>6800</range>
+		<altitudeMode>relativeToSeaFloor</altitudeMode>
+	  </LookAt>
+	  <LineString>
+	  <styleUrl>#bbox</styleUrl>
+		<extrude>1</extrude>
+		<coordinates>
+		
+		
+		  %s
+		
+		
+		</coordinates>
+	  </LineString>
+	  <description><![CDATA[<table border=1 cellpadding=2 cellspacing=0><tr><td colspan=2><b>Emphasis</b></td></tr><tr><td nowrap>Collection Request Name:</td><td nowrap>CTAR_Any_EO</td></tr><tr><td nowrap>Target Name:</td><td nowrap>customaoi</td></tr><tr><td nowrap>Sensor ID:</td><td nowrap>11</td></tr><tr><td nowrap>Rev:</td><td nowrap>107438</td></tr><tr><td nowrap>Pass:</td><td nowrap>7</td></tr><tr><td nowrap>TCA:</td><td nowrap>06/25/2019 15:33:51 Z</td></tr><tr><td nowrap>Predicted Time To Collect [s] [min - max (mid)]:</td><td nowrap>1 - 1 (1)</td></tr></table><br><table border=1 cellpadding=2 cellspacing=0><tr><td colspan=2><b>Collection Request</b></td></tr><tr><td nowrap>Name</td><td nowrap>CTAR_Any_EO</td></tr><tr><td nowrap>Justification</td><td nowrap>This is a test</td></tr><tr><td nowrap>Sensor Type</td><td nowrap>PAN</td></tr><tr><td nowrap>Target Type</td><td nowrap>DSA</td></tr><tr><td nowrap>Collection Type</td><td nowrap>ADHOC</td></tr><tr><td nowrap>Supplier Preference</td><td nowrap>FALSE</td></tr><tr><td nowrap>CollectionPeriod</td><td nowrap>1.0 DAYS</td></tr><tr><td nowrap>Start Date</td><td nowrap>06/25/2019 00:00:00 Z</td></tr><tr><td nowrap>Stop Date</td><td nowrap>06/25/2019 00:00:00 Z</td></tr><tr><td nowrap>Earliest Imaging Time</td><td nowrap>00:00:00</td></tr><tr><td nowrap>Latest Imaging Time</td><td nowrap>23:59:59</td></tr><tr><td nowrap>Weather Threshold</td><td nowrap>20.0</td></tr><tr><td nowrap>Required NIIRS</td><td nowrap>0.0</td></tr><tr><td nowrap>Desired NIIRS</td><td nowrap>0.0</td></tr><tr><td nowrap>Min Graze Angle / Target El [deg]</td><td nowrap>30.0</td></tr><tr><td nowrap>Max Graze Angle / Target El [deg]</td><td nowrap>90.0</td></tr><tr><td nowrap>Min Azimuth Angle [deg]</td><td nowrap>0.0</td></tr><tr><td nowrap>Max Azimuth Angle [deg]</td><td nowrap>360.0</td></tr><tr><td nowrap>Min Sun Elevation Angle [deg]</td><td nowrap>-4.0</td></tr><tr><td nowrap>Max Sun Elevation Angle [deg]</td><td nowrap>90.0</td></tr><tr><td nowrap>Min Sun Azimuth Angle [deg]</td><td nowrap>0.0</td></tr><tr><td nowrap>Max Sun Azimuth Angle [deg]</td><td nowrap>360.0</td></tr></table>]]></description>
+	</Placemark>
+</kml>
+<!--UNCLASSIFIED-->
+    """ % bounding_box_coordinates
+    with open("bbox.kml", "w+") as fp:
+        fp.write(bbox)
+    # generate cell kml file
+    header = """
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--UNCLASSIFIED-->
+<kml xmlns="http://www.opengis.net/kml/2.2">
+	<Placemark>
+		 <Style id="cell">
+	  <LineStyle>
+		<width>5</width>
+		<altitudeMode>relativeToSeaFloor</altitudeMode>
+		<color>ff0000ff</color>
+		<color>normal</color>
+	  </LineStyle>
+	 </Style>
+	  <name>cell</name>
+	  <LookAt>
+		<longitude>-75.4005</longitude>
+		<latitude>40.853</latitude>
+		<tilt>0</tilt>
+		<range>6800</range>
+		<altitudeMode>relativeToSeaFloor</altitudeMode>
+	  </LookAt>
+    """
+    footer = """
+    </Placemark>
+</kml>
+<!--UNCLASSIFIED-->
+    """
+    for cell in cell_list:
+        cell_kml = """
+        <LineString>
+	  <styleUrl>#cell</styleUrl>
+		<extrude>1</extrude> <!--this is a comment-->
+		<coordinates>
+
+        %s
+
+		</coordinates>
+	  </LineString>
+        """ % cell
+        header += cell_kml
+    # create recursive function to append node co-ords to kml
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
 
@@ -1716,6 +1813,8 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             if sys.argv[find_index][-4:] == ".csv":
                 print("Generating cell list from file")
                 cell_cordinates = Generate_cell_list(sys.argv[find_index])
+                with open("analysis_meta.txt","a") as fp:
+                    fp.write(cell_cordinates)
             else:
                 end_index = find_index + 5
                 cell_cordinates = [x for x in sys.argv[find_index:end_index]]
@@ -1741,6 +1840,8 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             extent = [x for x in sys.argv[find_index:end_index]]
             extent = ",".join(extent)
             # print(extent)
+            with open("analysis_meta.txt","w+") as fp:
+                fp.write(extent)
             PrimaryQ(extent)
         if "filter_version" == input:
             find_index = sys.argv.index(input) + 1
