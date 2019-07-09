@@ -1329,6 +1329,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     print("File Generated in %s" % os.getcwd())  # Message to user
 
 
+#TODO: bug fix, two headers in written file
 def SecondQ(cell_list):
     """
     Refined query, this function will break down the data into user defined cells and generate two output files.
@@ -1699,102 +1700,146 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
     del reader
     return cell_list
 
-#TODO: add method to be accepted by command line input
+
+def Generate_presentation_coordinates(bbox,recurse=False,ret_lst=None):
+    """
+    Support function, this function will parse coordinates and generate the coordinate pairs to identify a bounding box
+
+    :param bbox:
+    :return:
+    """
+
+    print(bbox)
+    # Check if list was passed
+    if isinstance(bbox[0],list):
+        cell_list = bbox
+        cells = []
+        print(cell_list)
+        ret_lst = []
+        for bbox in cell_list:
+            ret_lst = Generate_presentation_coordinates(bbox, True, ret_lst)
+        return ret_lst
+
+    else:
+        # split into coordinate pairs
+        coord_lst = [",".join([bbox[1], bbox[0]])]
+        coord_lst.append(",".join([bbox[-1], bbox[0]]))
+        coord_lst.append(",".join([bbox[-1], bbox[2]]))
+        coord_lst.append(",".join([bbox[1], bbox[2]]))
+        coord_lst.append(coord_lst[0])
+        # format data for kml file
+        coordinate_pairs = coord_lst[0] + ",100"
+        for cord in coord_lst[1:]:
+            coordinate_pairs += "\n" + cord + ",100"
+        if recurse:
+            ret_lst.append(coordinate_pairs)
+            return ret_lst
+        return coordinate_pairs
+
+
 def Present():
+    """
+    This function is meant for the purposes of presentation. It will read from the meta data file collected during the
+    analysis portion of the program and generate kml files based on that data.
 
+    :return:
+    """
 
-    # open query meta data and sort
-    # I need extent of query
-    # I need cell of query
     # generate 4 corners from extent
-    # with open("analysis_meta.txt","r") as fp:
-    #     meta_data = fp.read()
-    #     for data in meta_data:
-    #         extent = data
+    with open("analysis_meta.txt","r") as fp:
+        data = fp.read()
+    data = data.split("\n")
+    print(data)
+    bbox = data[0].split(",")
+    print("bbox before func",bbox)
+    bounding_box_coordinates = Generate_presentation_coordinates(bbox[:])
 
     # generate bbox kml file
-    bbox = """
-<?xml version="1.0" encoding="UTF-8"?>
+    bbox = """<?xml version="1.0" encoding="UTF-8"?>
 
 <!--UNCLASSIFIED-->
 <kml xmlns="http://www.opengis.net/kml/2.2">
-	<Placemark>
+	<Document>
+	<name>Bounding box</name>
 	<Style id="bbox">
 	  <LineStyle>
-		<width>5</width>
-		<altitudeMode>relativeToSeaFloor</altitudeMode>
-		<color>ff000000</color>
-		<color>normal</color>
-	  </LineStyle>
+        <color>ff0000ff</color>
+		<width>8</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>ffff0000</color>
+      </PolyStyle>
 	 </Style>
+	 
+	<Placemark>
 	  <name>Bounding Box</name>
-	  <LookAt>
-		<longitude>-75.4005</longitude>
-		<latitude>40.853</latitude>
-		<tilt>0</tilt>
-		<range>6800</range>
-		<altitudeMode>relativeToSeaFloor</altitudeMode>
-	  </LookAt>
-	  <LineString>
 	  <styleUrl>#bbox</styleUrl>
+	  <LineString>
+	  <altitudeMode>absolute</altitudeMode>
 		<extrude>1</extrude>
 		<coordinates>
 		
-		
 		  %s
-		
 		
 		</coordinates>
 	  </LineString>
-	  <description><![CDATA[<table border=1 cellpadding=2 cellspacing=0><tr><td colspan=2><b>Emphasis</b></td></tr><tr><td nowrap>Collection Request Name:</td><td nowrap>CTAR_Any_EO</td></tr><tr><td nowrap>Target Name:</td><td nowrap>customaoi</td></tr><tr><td nowrap>Sensor ID:</td><td nowrap>11</td></tr><tr><td nowrap>Rev:</td><td nowrap>107438</td></tr><tr><td nowrap>Pass:</td><td nowrap>7</td></tr><tr><td nowrap>TCA:</td><td nowrap>06/25/2019 15:33:51 Z</td></tr><tr><td nowrap>Predicted Time To Collect [s] [min - max (mid)]:</td><td nowrap>1 - 1 (1)</td></tr></table><br><table border=1 cellpadding=2 cellspacing=0><tr><td colspan=2><b>Collection Request</b></td></tr><tr><td nowrap>Name</td><td nowrap>CTAR_Any_EO</td></tr><tr><td nowrap>Justification</td><td nowrap>This is a test</td></tr><tr><td nowrap>Sensor Type</td><td nowrap>PAN</td></tr><tr><td nowrap>Target Type</td><td nowrap>DSA</td></tr><tr><td nowrap>Collection Type</td><td nowrap>ADHOC</td></tr><tr><td nowrap>Supplier Preference</td><td nowrap>FALSE</td></tr><tr><td nowrap>CollectionPeriod</td><td nowrap>1.0 DAYS</td></tr><tr><td nowrap>Start Date</td><td nowrap>06/25/2019 00:00:00 Z</td></tr><tr><td nowrap>Stop Date</td><td nowrap>06/25/2019 00:00:00 Z</td></tr><tr><td nowrap>Earliest Imaging Time</td><td nowrap>00:00:00</td></tr><tr><td nowrap>Latest Imaging Time</td><td nowrap>23:59:59</td></tr><tr><td nowrap>Weather Threshold</td><td nowrap>20.0</td></tr><tr><td nowrap>Required NIIRS</td><td nowrap>0.0</td></tr><tr><td nowrap>Desired NIIRS</td><td nowrap>0.0</td></tr><tr><td nowrap>Min Graze Angle / Target El [deg]</td><td nowrap>30.0</td></tr><tr><td nowrap>Max Graze Angle / Target El [deg]</td><td nowrap>90.0</td></tr><tr><td nowrap>Min Azimuth Angle [deg]</td><td nowrap>0.0</td></tr><tr><td nowrap>Max Azimuth Angle [deg]</td><td nowrap>360.0</td></tr><tr><td nowrap>Min Sun Elevation Angle [deg]</td><td nowrap>-4.0</td></tr><tr><td nowrap>Max Sun Elevation Angle [deg]</td><td nowrap>90.0</td></tr><tr><td nowrap>Min Sun Azimuth Angle [deg]</td><td nowrap>0.0</td></tr><tr><td nowrap>Max Sun Azimuth Angle [deg]</td><td nowrap>360.0</td></tr></table>]]></description>
 	</Placemark>
+</Document>
 </kml>
 <!--UNCLASSIFIED-->
     """ % bounding_box_coordinates
     with open("bbox.kml", "w+") as fp:
         fp.write(bbox)
+
     # generate cell kml file
-    header = """
-<?xml version="1.0" encoding="UTF-8"?>
+    header = """<?xml version="1.0" encoding="UTF-8"?>
 
 <!--UNCLASSIFIED-->
 <kml xmlns="http://www.opengis.net/kml/2.2">
-	<Placemark>
-		 <Style id="cell">
+<Document>
+<name>cells</name>
+	 <Style id="cell">
 	  <LineStyle>
-		<width>5</width>
-		<altitudeMode>relativeToSeaFloor</altitudeMode>
-		<color>ff0000ff</color>
-		<color>normal</color>
-	  </LineStyle>
+        <color>ffff0000</color>
+		<width>8</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>ff0000ff</color>
+      </PolyStyle>
 	 </Style>
+	 <Placemark>
 	  <name>cell</name>
-	  <LookAt>
-		<longitude>-75.4005</longitude>
-		<latitude>40.853</latitude>
-		<tilt>0</tilt>
-		<range>6800</range>
-		<altitudeMode>relativeToSeaFloor</altitudeMode>
-	  </LookAt>
+	  <styleUrl>#cell</styleUrl>
     """
     footer = """
     </Placemark>
+</Document>
 </kml>
 <!--UNCLASSIFIED-->
     """
+    cell_list = []
+    for x in data[1:]:
+        cell_list.append(x.split())
+    cell_list = Generate_presentation_coordinates(cell_list)
+    cell_number = 0
+    print("final cell list", cell_list)
     for cell in cell_list:
         cell_kml = """
         <LineString>
-	  <styleUrl>#cell</styleUrl>
-		<extrude>1</extrude> <!--this is a comment-->
+        <altitudeMode>absolute</altitudeMode>
+		<extrude>1</extrude>
 		<coordinates>
 
         %s
 
 		</coordinates>
-	  </LineString>
-        """ % cell
-        header += cell_kml
+	  </LineString>""" % cell
+        kml_to_write = header + cell_kml + footer
+        with open("cell_%d.kml" % cell_number, "w+") as fp:
+            fp.write(kml_to_write)
+        cell_number +=1
+
+    #TODO: This vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
     # create recursive function to append node co-ords to kml
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
@@ -1813,8 +1858,6 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             if sys.argv[find_index][-4:] == ".csv":
                 print("Generating cell list from file")
                 cell_cordinates = Generate_cell_list(sys.argv[find_index])
-                with open("analysis_meta.txt","a") as fp:
-                    fp.write(cell_cordinates)
             else:
                 end_index = find_index + 5
                 cell_cordinates = [x for x in sys.argv[find_index:end_index]]
@@ -1853,6 +1896,10 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             distance = float(sys.argv[find_index])
             # print(distance)
             filter_data = True
+        if "present" == input:
+            print("Generating kml files...")
+            Present()
+            print("Kml files have been generated.")
 
     if filter_data:
         if "distance" not in dir():
@@ -1861,6 +1908,9 @@ if __name__ == "__main__":  # The function calls in this section will be execute
 
     if cell_created:
         SecondQ(cell_cordinates)
+        with open("analysis_meta.txt", "a+") as fp:
+            for cell in cell_cordinates:
+                fp.write("\n"+cell)
 
     ##   These are some example program calls that have been configured
     #     overpass_work.py --help                                                  Show the help message
