@@ -8,14 +8,20 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-import xml.etree.ElementTree as ET
-import csv, os, sys, math, re
-from urllib.request import urlopen
-from urllib.error import HTTPError
-from xml.sax import handler, make_parser
-from decimal import Decimal
-from datetime import datetime
+import csv
+import math
+import os
+import re
+import sys
 from collections import OrderedDict
+from copy import copy
+from datetime import datetime
+from decimal import Decimal
+from urllib.error import HTTPError
+from urllib.request import urlopen
+from xml.sax import handler, make_parser
+
+from constants import epsilon, radius_of_earth
 
 sys.setrecursionlimit(2000)  # Heuristic value
 # -----------------------------------------------------------------------------------------------------------------------
@@ -1511,8 +1517,6 @@ def Calculate_distance(coords_set1, coords_set2):
     :param cur_coords:
     :return:
     """
-
-    radius_of_earth = 6371  # mean value in km from: https://www.movable-type.co.uk/scripts/latlong.html
     # Unpack co-ordinate sets
     previous_lat, previous_lon = [float(x) for x in coords_set1]
     current_lat, current_lon = [float(x) for x in coords_set2]
@@ -1526,7 +1530,7 @@ def Calculate_distance(coords_set1, coords_set2):
     return distance_between_points
 
 
-def Calculate_coordinates(start_set, end_set, distance):
+def Calculate_coordinates(start_set, end_set, distance, distance_bt_points=0.0):
     lat_start, lon_start = [math.degrees(x) for x in start_set]
     lat_end, lon_end = [math.degrees(x) for x in end_set]
     x = float(abs(lat_start - lat_end))
@@ -1557,6 +1561,108 @@ def Calculate_coordinates(start_set, end_set, distance):
     return coordinate_set
 
 
+def calculate_new_node(start_set, end_set, distance, distance_bt_points):
+    lat_start, lon_start = [math.degrees(x) for x in start_set]
+    lat_end, lon_end = [math.degrees(x) for x in end_set]
+    lat_point = float(lat_end) + (distance / distance_bt_points) * (float(lat_start) - float(lat_end))
+    lon_point = float(lon_end) + (distance / distance_bt_points) * (float(lon_start) - float(lon_end))
+
+    coordinate_set = [lat_point, lon_point]
+    return coordinate_set
+
+
+def create_new_nodes_on_road(nodes_on_road, min_distance, generated_node_num):
+    updated_nodes = list()
+    cur_node = nodes_on_road[0]
+    for i in range(1, len(nodes_on_road)):
+        end_node = nodes_on_road[i]
+        cur_coordinates = [math.radians(float(x)) for x in cur_node[-2:]]  # Unpack and convert lat and lon
+        end_coordinates = [math.radians(float(x)) for x in end_node[2:4]]
+        distance = round(Calculate_distance(cur_coordinates, end_coordinates), epsilon)
+        while distance > min_distance:
+            if cur_node not in updated_nodes:
+                updated_nodes.append(cur_node)
+
+            # Generate a new node min_distance from the first node (cur_node)
+            generated_node_num += 1
+            new_node = copy(cur_node)
+            new_node[1] = "Generated Node %d" % generated_node_num
+            new_coords = calculate_new_node(end_coordinates, cur_coordinates, min_distance, distance)
+            new_node[-2], new_node[-1] = new_coords
+            cur_node = new_node
+            cur_coordinates = [math.radians(float(x)) for x in cur_node[-2:]]  # Unpack and convert lat and lon
+            distance = round(Calculate_distance(cur_coordinates, end_coordinates), epsilon)
+        if distance < min_distance:
+            if cur_node not in updated_nodes:
+                updated_nodes.append(cur_node)
+        elif distance == min_distance:
+            if cur_node not in updated_nodes:
+                updated_nodes.append(cur_node)
+            updated_nodes.append(end_node)
+            cur_node = end_node
+
+    if nodes_on_road[-1] not in updated_nodes:
+        updated_nodes.append(nodes_on_road[-1])
+
+    return updated_nodes
+
+
+def filter_3_csv(min_distance=0.05):
+    """
+    Loops over each road and creates waypoints min_distance from previous waypoint.
+    The location of new way point is determined by using the original waypoints to move min_distance along the road.
+    The last waypoint should always be kept. Outputs the new waypoints of the road to a csv
+
+    :param min_distance: minimum distance between waypoints on each road
+    :type min_distance: float
+    """
+    print("Beginning filter process %d:" % version)  # Message to user
+    if min_distance is None:  # Check if minimum distance is defined
+        min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
+
+    with open("Query Result.csv", "r", newline='') as Master_List:  # Open csv file from original query
+        with open("Filtered Results version_%d.csv" % version, "w+",
+                  newline="") as Child_List:  # Create or truncate csv file to write
+            Master_Read = csv.reader(Master_List)  # Create read object
+            Child_Write = csv.writer(Child_List)  # Create write object
+
+            row_num = 0
+            start_road_name = None  # Keeps track of the current road being evaluated
+            nodes_on_road = list()
+            generated_node_num = 0
+            for mdata in Master_Read:
+                row_num += 1
+                # If it is the first row in the file the print our the header row
+                if row_num == 1:
+                    Header_write([mdata], Child_Write)
+                    continue
+                if mdata == []:  # Check if anything was read
+                    continue  # Skip loop
+
+                if start_road_name is None:
+                    # Once a new road is found......
+                    # begin repopulating the list that stores all of the nodes on a single road
+                    nodes_on_road.append(mdata)
+                    # and then store the name of the road
+                    start_road_name = mdata[0]
+                    continue
+                else:
+                    if not mdata[0] == start_road_name:
+                        # Perform calculations to determine distance between start and end
+                        # number of points that can fit and compute the actual points to a csv
+                        updated_points = create_new_nodes_on_road(nodes_on_road, min_distance, generated_node_num)
+                        Child_Write.writerows(updated_points)
+                        # Wipe out all of the nodes that were being evaluated on this road
+                        nodes_on_road.clear()
+                        # Begin storing nodes on this new road
+                        nodes_on_road.append(mdata)
+                        # We are about to begin evaluating a new road so updated road name
+                        start_road_name = mdata[0]
+                    else:
+                        # If we are evaluating a node on the current road, then add this node to the list
+                        nodes_on_road.append(mdata)
+
+
 def Filter_csv(version=1, min_distance=None):
     """
     This function expects no input parameters however they can be defined by the user. Two versions of this function
@@ -1571,100 +1677,102 @@ def Filter_csv(version=1, min_distance=None):
     :param min_distance: Int must be defined at runtime: distance in km
     :return:
     """
-
     # User data entry sanity check
     assert type(version) == int, "version must be an integer either 1 or 2"
-    assert version == 2 or version == 1, "version must be either 1 or 2"
+    assert version == 3 or version == 2 or version == 1, "version must be either 1 or 2"
 
-    print("Beginning filter process %d:" % version)  # Message to user
-    if min_distance is None:  # Check if minimum distance is defined
-        min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
+    if version == 3:
+        filter_3_csv(min_distance=min_distance)
+    else:
+        print("Beginning filter process %d:" % version)  # Message to user
+        if min_distance is None:  # Check if minimum distance is defined
+            min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
 
-    with open("Query Result.csv", "r", newline='') as Master_List:  # Open csv file from original query
-        with open("Filtered Results version_%d.csv" % version, "w+",
-                  newline="") as Child_List:  # Create or truncate csv file to write
-            Master_Read = csv.reader(Master_List)  # Create read object
-            Child_Write = csv.writer(Child_List)  # Create write object
+        with open("Query Result.csv", "r", newline='') as Master_List:  # Open csv file from original query
+            with open("Filtered Results version_%d.csv" % version, "w+",
+                      newline="") as Child_List:  # Create or truncate csv file to write
+                Master_Read = csv.reader(Master_List)  # Create read object
+                Child_Write = csv.writer(Child_List)  # Create write object
 
-            previous_coordinates = 0
-            count = 1
-            meta_data = []
-            previous_loop = [0, 0, 0, 0]
-            for mdata in Master_Read:
-                if mdata == []:  # Check if anthing was read
-                    continue  # Skip loop
+                previous_coordinates = 0
+                count = 1
+                meta_data = []
+                previous_loop = [0, 0, 0, 0]
+                for mdata in Master_Read:
+                    if mdata == []:  # Check if anthing was read
+                        continue  # Skip loop
 
-                # Read meta data and write to new file
-                if "count" in dir():  # Check if count is defined
-                    if count < 2:  # Check value of count
-                        if count == 1:
-                            if version == 1:
-                                mdata.append("Distance from last point (km)")  # Append new column to header
-                            if version == 2:
-                                generated_node_count = 0
-                        assert mdata is not None, "Broken query data"  # Sanity check writing None type to file will result in error
-                        meta_data.append(mdata)  # Add meta data to list
-                        count += 1  # Incriment counter
-                        continue  # Skip rest of loop
-                    if count == 2:
-                        Header_write(meta_data, Child_Write)  # Write meta data to file
-                        previous_loop = [x for x in mdata]  # Unpack data for first iteration
-                        del count  # Delete count
-                        continue  # Skip rest of loop
+                    # Read meta data and write to new file
+                    if "count" in dir():  # Check if count is defined
+                        if count < 2:  # Check value of count
+                            if count == 1:
+                                if version == 1:
+                                    mdata.append("Distance from last point (km)")  # Append new column to header
+                                if version == 2:
+                                    generated_node_count = 0
+                            assert mdata is not None, "Broken query data"  # Sanity check writing None type to file will result in error
+                            meta_data.append(mdata)  # Add meta data to list
+                            count += 1  # Incriment counter
+                            continue  # Skip rest of loop
+                        if count == 2:
+                            Header_write(meta_data, Child_Write)  # Write meta data to file
+                            previous_loop = [x for x in mdata]  # Unpack data for first iteration
+                            del count  # Delete count
+                            continue  # Skip rest of loop
 
-                # Organize data
-                current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
-                previous_coordinates = [math.radians(float(x)) for x in previous_loop[2:4]]
-                current_way = mdata[0]
-                previous_way = previous_loop[0]
-                current_node = mdata[1]
-                previous_node = previous_loop[1]
-                distance = Calculate_distance(previous_coordinates,
-                                              current_coordinates)  # Call distance calculation function
-                pretty_list = [x for x in mdata]  # Copy list values
+                    # Organize data
+                    current_coordinates = [math.radians(float(x)) for x in mdata[-2:]]  # Unpack and convert lat and lon
+                    previous_coordinates = [math.radians(float(x)) for x in previous_loop[2:4]]
+                    current_way = mdata[0]
+                    previous_way = previous_loop[0]
+                    current_node = mdata[1]
+                    previous_node = previous_loop[1]
+                    distance = Calculate_distance(previous_coordinates,
+                                                  current_coordinates)  # Call distance calculation function
+                    pretty_list = [x for x in mdata]  # Copy list values
 
-                # Same node check
-                if previous_coordinates == current_coordinates:  # Check for duplicate co-ordinates
-                    if current_node != previous_node and "Generated" not in previous_node:  # Check for separate node ids
-                        raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
-                    else:
-                        continue  # Skip rest of loop
+                    # Same node check
+                    if previous_coordinates == current_coordinates:  # Check for duplicate co-ordinates
+                        if current_node != previous_node and "Generated" not in previous_node:  # Check for separate node ids
+                            raise IOError("Duplicate lat and lon for different nodes, This is an overpass error")
+                        else:
+                            continue  # Skip rest of loop
 
-                # Begin filter process
-                if current_way == previous_way:  # Check for same road
-                    if version == 1:  # Check version number
-                        # Initialize data values
-                        pretty_list.append(distance)  # Append to list
-                        if distance > min_distance:  # Check if calculated distance exceeds minimum distance
-                            previous_coordinates = current_coordinates  # Set values for next loop
+                    # Begin filter process
+                    if current_way == previous_way:  # Check for same road
+                        if version == 1:  # Check version number
+                            # Initialize data values
+                            pretty_list.append(distance)  # Append to list
+                            if distance > min_distance:  # Check if calculated distance exceeds minimum distance
+                                previous_coordinates = current_coordinates  # Set values for next loop
+                                Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
+                                saved_node = pretty_list[1]
+
+                        # Higher priority
+                        if version == 2:  # Check version number
+                            if distance > min_distance:  # Check if points exceed min distance
+                                pretty_list_generated = [x for x in pretty_list]
+                                coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, min_distance)
+                                node_str = "Generated node # %d" % generated_node_count  # save string to write
+                                generated_node_count += 1  # incriment generated id
+                                pretty_list_generated[1] = node_str
+                                pretty_list_generated[-2], pretty_list_generated[-1] = coordinates
+                                Child_Write.writerow(pretty_list_generated)
                             Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
                             saved_node = pretty_list[1]
+                            previous_coordinates = [math.degrees(x) for x in previous_coordinates]
+                            if previous_coordinates == coordinates:
+                                pretty_list[-2:] = [math.degrees(x) for x in current_coordinates]
+                    else:
+                        if saved_node != previous_node:
+                            Child_Write.writerow([previous_way, previous_node, *previous_coordinates])
+                        Child_Write.writerow(pretty_list)
 
-                    # Higher priority
-                    if version == 2:  # Check version number
-                        if distance > min_distance:  # Check if points exceed min distance
-                            pretty_list_generated = [x for x in pretty_list]
-                            coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, min_distance)
-                            node_str = "Generated node # %d" % generated_node_count  # save string to write
-                            generated_node_count += 1  # incriment generated id
-                            pretty_list_generated[1] = node_str
-                            pretty_list_generated[-2], pretty_list_generated[-1] = coordinates
-                            Child_Write.writerow(pretty_list_generated)
-                        Child_Write.writerow(pretty_list)  # Write data to csv file in pretty format
-                        saved_node = pretty_list[1]
-                        previous_coordinates = [math.degrees(x) for x in previous_coordinates]
-                        if previous_coordinates == coordinates:
-                            pretty_list[-2:] = [math.degrees(x) for x in current_coordinates]
-                else:
-                    if saved_node != previous_node:
-                        Child_Write.writerow([previous_way, previous_node, *previous_coordinates])
-                    Child_Write.writerow(pretty_list)
+                    previous_loop = pretty_list  # Save values for next loop
+                # End main loop
 
-                previous_loop = pretty_list  # Save values for next loop
-            # End main loop
-
-            print("Filter process complete.")
-            return
+                print("Filter process complete.")
+                return
 
 
 def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,length_of_reader=None):
