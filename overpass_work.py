@@ -1745,7 +1745,6 @@ def Present():
     :return:
     """
 
-    # TODO: Update kml generation function with new template
     # generate 4 corners from extent
     with open("analysis_meta.txt","r") as fp:
         data = fp.read()
@@ -1801,6 +1800,15 @@ def Present():
         <color>ffff0000</color>
       </PolyStyle>
 	 </Style>
+	 
+     <Style id="dot">
+      <IconStyle>
+         <scale>1.1</scale>
+         <Icon>
+            <href>http://maps.google.com/mapfiles/kml/pal3/icon61.png</href>
+         </Icon>
+      </IconStyle>
+   </Style>
     """
     footer = """  </Document>
 </kml>
@@ -1828,22 +1836,31 @@ def Present():
 	""" % cell
         kml_to_write.append(cell_kml)
 
-
-    #TODO: This vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    # create recursive function to append node co-ords to kml
-
-    with open("Cell separate data.csv","r") as fp:
+    # Generate kml from saved coordinates
+    with open("Filtered Results version_3.csv","r") as fp:
         reader = csv.reader(fp)
         for data in reader:
             if "Lat" in data or data ==[]:
                 continue
             coordinates = data[-1]+","+data[-2]
+            name = ""
+            for x in data[0].split()[1:]:
+                name +=" "+x
             print(coordinates)
             node_kml="""
-            """ % *coordinates
+            	<Placemark>
+	            <styleUrl>#dot</styleUrl>
+                <name>%s</name>
+	            <altitudeMode>absolute</altitudeMode>
+                <Point>
+                <coordinates>%s</coordinates>
+                </Point>
+	            </Placemark>
+            """ % (name,coordinates)
             kml_to_write.append(node_kml)
 
-    with open("Present analysis.kml", "w+") as fp:
+    with open("Present analysis.kml", "w+",encoding="utf-8") as fp:
+        print(header)
         fp.write(header)
         for feature in kml_to_write:
             fp.write(feature)
