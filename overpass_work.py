@@ -1824,8 +1824,24 @@ def Present():
         %s
 		</coordinates>
 	  </LineString>
-	</Placemark>""" % cell
+	</Placemark>
+	""" % cell
         kml_to_write.append(cell_kml)
+
+
+    #TODO: This vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+    # create recursive function to append node co-ords to kml
+
+    with open("Cell separate data.csv","r") as fp:
+        reader = csv.reader(fp)
+        for data in reader:
+            if "Lat" in data or data ==[]:
+                continue
+            coordinates = data[-1]+","+data[-2]
+            print(coordinates)
+            node_kml="""
+            """ % *coordinates
+            kml_to_write.append(node_kml)
 
     with open("Present analysis.kml", "w+") as fp:
         fp.write(header)
@@ -1834,8 +1850,6 @@ def Present():
         fp.write(footer)
     cell_number +=1
 
-    #TODO: This vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    # create recursive function to append node co-ords to kml
 
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
 
