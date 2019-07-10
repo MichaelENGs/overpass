@@ -1745,6 +1745,7 @@ def Present():
     :return:
     """
 
+    # TODO: Update kml generation function with new template
     # generate 4 corners from extent
     with open("analysis_meta.txt","r") as fp:
         data = fp.read()
@@ -1755,23 +1756,7 @@ def Present():
     bounding_box_coordinates = Generate_presentation_coordinates(bbox[:])
 
     # generate bbox kml file
-    bbox = """<?xml version="1.0" encoding="UTF-8"?>
-
-<!--UNCLASSIFIED-->
-<kml xmlns="http://www.opengis.net/kml/2.2">
-	<Document>
-	<name>Bounding box</name>
-	<Style id="bbox">
-	  <LineStyle>
-        <color>ff0000ff</color>
-		<width>8</width>
-      </LineStyle>
-      <PolyStyle>
-        <color>ffff0000</color>
-      </PolyStyle>
-	 </Style>
-	 
-	<Placemark>
+    bbox = """<Placemark>
 	  <name>Bounding Box</name>
 	  <styleUrl>#bbox</styleUrl>
 	  <LineString>
@@ -1784,20 +1769,19 @@ def Present():
 		</coordinates>
 	  </LineString>
 	</Placemark>
-</Document>
-</kml>
-<!--UNCLASSIFIED-->
     """ % bounding_box_coordinates
-    with open("bbox.kml", "w+") as fp:
-        fp.write(bbox)
+    kml_to_write = [bbox]
+    # with open("bbox.kml", "w+") as fp:
+    #     fp.write(bbox)
 
     # generate cell kml file
     header = """<?xml version="1.0" encoding="UTF-8"?>
 
 <!--UNCLASSIFIED-->
 <kml xmlns="http://www.opengis.net/kml/2.2">
-<Document>
-<name>cells</name>
+    <Document>
+    <name>Overpass Analysis</name>
+	
 	 <Style id="cell">
 	  <LineStyle>
         <color>ffff0000</color>
@@ -1807,16 +1791,20 @@ def Present():
         <color>ff0000ff</color>
       </PolyStyle>
 	 </Style>
-	 <Placemark>
-	  <name>cell</name>
-	  <styleUrl>#cell</styleUrl>
+	 
+	<Style id="bbox">
+	  <LineStyle>
+        <color>ff0000ff</color>
+		<width>8</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>ffff0000</color>
+      </PolyStyle>
+	 </Style>
     """
-    footer = """
-    </Placemark>
-</Document>
+    footer = """  </Document>
 </kml>
-<!--UNCLASSIFIED-->
-    """
+<!--UNCLASSIFIED-->"""
     cell_list = []
     for x in data[1:]:
         cell_list.append(x.split())
@@ -1825,19 +1813,26 @@ def Present():
     print("final cell list", cell_list)
     for cell in cell_list:
         cell_kml = """
-        <LineString>
-        <altitudeMode>absolute</altitudeMode>
+       	<!--Cell wall-->
+	<Placemark>
+	  <name>Bounding Box 2</name>
+	  <styleUrl>#cell</styleUrl>
+	  <LineString>
+		<altitudeMode>absolute</altitudeMode>
 		<extrude>1</extrude>
 		<coordinates>
-
         %s
-
 		</coordinates>
-	  </LineString>""" % cell
-        kml_to_write = header + cell_kml + footer
-        with open("cell_%d.kml" % cell_number, "w+") as fp:
-            fp.write(kml_to_write)
-        cell_number +=1
+	  </LineString>
+	</Placemark>""" % cell
+        kml_to_write.append(cell_kml)
+
+    with open("Present analysis.kml", "w+") as fp:
+        fp.write(header)
+        for feature in kml_to_write:
+            fp.write(feature)
+        fp.write(footer)
+    cell_number +=1
 
     #TODO: This vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
     # create recursive function to append node co-ords to kml
