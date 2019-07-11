@@ -1,7 +1,7 @@
 ## Project: Skynet V2
 ## Phase: N/A Road Data From Overpass
 ## Michael Salzarulo
-## Description: Version 1.4
+## Description: Version 1.5
 # Intended to be used as a command line tool. This script will automatically query the overpass api and
 # return the desired data via csv file. This software comes equip with an interface to swiftly guide the user through
 # process of generating and analyzing data.
@@ -1337,7 +1337,6 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     print("File Generated in %s" % os.getcwd())  # Message to user
 
 
-#TODO: bug fix, two headers in written file
 def SecondQ(cell_list):
     """
     Refined query, this function will break down the data into user defined cells and generate two output files.
@@ -1349,6 +1348,10 @@ def SecondQ(cell_list):
     :return:
     """
 
+    with open("analysis_meta.txt","r") as fp:
+        data = fp.read()
+        bbox = data.split("\n")[0]
+
     more_loops = True
     with open("Cell separated data.csv", "w+", newline="") as nfp:
         writer = csv.writer(nfp)
@@ -1357,6 +1360,7 @@ def SecondQ(cell_list):
         previous_node = None
         previous_way = None
         previous_coordinates = None
+        header_written = False
         previous_lon = None
         previous_lat = None
         for cell in cell_list:  # loop cell by cell
@@ -1368,7 +1372,7 @@ def SecondQ(cell_list):
             cell_data = cell + "_" + str(cell_id)
             # open data
 
-            with open("Filtered results version_2.csv", "r") as fp:
+            with open("Filtered results version_3.csv", "r") as fp:
                 reader = csv.reader(fp)
                 # read data
                 for data in reader:
@@ -1376,12 +1380,17 @@ def SecondQ(cell_list):
                     if data == []:
                         continue
                     # Create and write header
+
                     if "Road #/id" in data:
-                        # print("here")
-                        pretty_list = [x for x in data]
-                        pretty_list.insert(0, "cell id/bbox")
-                        writer.writerow(pretty_list)
-                        continue
+                        if not header_written:
+                            # print("here")
+                            pretty_list = [x for x in data]
+                            pretty_list.insert(0, "cell id/bbox")
+                            writer.writerow(pretty_list)
+                            header_written = True
+                            continue
+                        else:
+                            continue
 
                     # organize data
                     way, node, lat, lon = data
@@ -1394,8 +1403,8 @@ def SecondQ(cell_list):
 
                     # Check to see way crosses cell boundary
                     if way == previous_way and \
-                            previous_coordinates != current_coordinates and \
-                            (Isincell(previous_coordinates, cell) or Isincell(current_coordinates, cell)):
+                            previous_coordinates != current_coordinates and not \
+                            Isincell(previous_coordinates, cell) and Isincell(current_coordinates,cell):
                         boundary_coordinates = Generate_boundary_coordinates(previous_coordinates, current_coordinates,
                                                                              cell)
                         node = "Generated node # %d" % node_id
@@ -1484,8 +1493,11 @@ def Generate_boundary_coordinates(previous_coordinates, current_coordinates, cel
     if point_to_point_cartesian_displacement == north_south:  # Check position of point
         short_x = (short_lon)
     short_distance = short_x / math.cos(theta)  # Calculate distance to boundary line
-    coordinates = Calculate_coordinates(previous_coordinates, current_coordinates,
-                                        short_distance)  # Calculate co-ordinates of boundary point
+
+    previous_coordinates = [math.radians(x) for x in previous_coordinates]
+    current_coordinates = [math.radians(x) for x in current_coordinates]
+    coordinates = calculate_new_node(previous_coordinates, current_coordinates,
+                                        short_distance,distance)  # Calculate co-ordinates of boundary point
     return coordinates
 
 
@@ -1498,7 +1510,10 @@ def Cell_data_strip(cell):
     """
 
     # Convert data to usable format
-    cell_num = [float(x) for x in cell.split()]
+    if "," in cell:
+        cell_num = [float(x) for x in cell.split(",")]
+    else:
+        cell_num = [float(x) for x in cell.split()]
     lat_list = []
     lon_list = []
     # Generate list of lat and lon
@@ -1577,13 +1592,17 @@ def calculate_new_node(start_set, end_set, distance, distance_bt_points):
 def create_new_nodes_on_road(nodes_on_road, min_distance, generated_node_num):
     updated_nodes = list()
     cur_node = nodes_on_road[0]
-    for i in range(1, len(nodes_on_road)):
-        end_node = nodes_on_road[i]
+    print(nodes_on_road)
+    for i in nodes_on_road[1:]:
+        end_node = i
         cur_coordinates = [math.radians(float(x)) for x in cur_node[-2:]]  # Unpack and convert lat and lon
         end_coordinates = [math.radians(float(x)) for x in end_node[2:4]]
         distance = round(Calculate_distance(cur_coordinates, end_coordinates), epsilon)
+        print("in for")
         while distance > min_distance:
+            print("in while",distance,min_distance)
             if cur_node not in updated_nodes:
+                print("logic")
                 updated_nodes.append(cur_node)
 
             # Generate a new node min_distance from the first node (cur_node)
@@ -1666,7 +1685,7 @@ def filter_3_csv(min_distance=0.05):
                         nodes_on_road.append(mdata)
 
 
-def Filter_csv(version=1, min_distance=None):
+def Filter_csv(version=1, min_distance=.05):
     """
     This function expects no input parameters however they can be defined by the user. Two versions of this function
     are available version 1 will execute by default.
@@ -1755,7 +1774,7 @@ def Filter_csv(version=1, min_distance=None):
                         if version == 2:  # Check version number
                             if distance > min_distance:  # Check if points exceed min distance
                                 pretty_list_generated = [x for x in pretty_list]
-                                coordinates = Calculate_coordinates(previous_coordinates, current_coordinates, min_distance)
+                                coordinates = calculate_new_node(previous_coordinates, current_coordinates, min_distance,distance)
                                 node_str = "Generated node # %d" % generated_node_count  # save string to write
                                 generated_node_count += 1  # incriment generated id
                                 pretty_list_generated[1] = node_str
@@ -1819,7 +1838,7 @@ def Generate_presentation_coordinates(bbox,recurse=False,ret_lst=None):
     :return:
     """
 
-    # print(bbox)
+    print(bbox)
     # Check if list was passed
     if isinstance(bbox[0],list):
         cell_list = bbox
@@ -1847,7 +1866,7 @@ def Generate_presentation_coordinates(bbox,recurse=False,ret_lst=None):
         return coordinate_pairs
 
 
-def Present():
+def Present(version=3):
     """
     This function is meant for the purposes of presentation. It will read from the meta data file collected during the
     analysis portion of the program and generate kml files based on that data.
@@ -1947,7 +1966,7 @@ def Present():
         kml_to_write.append(cell_kml)
 
     # Generate kml from saved coordinates
-    with open("Filtered Results version_3.csv","r") as fp:
+    with open("Filtered Results version_%s.csv" % version,"r") as fp:
         reader = csv.reader(fp)
         for data in reader:
             if "Lat" in data or data ==[]:
@@ -2032,13 +2051,15 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             # print(distance)
             filter_data = True
         if "present" == input:
+            find_index = sys.argv.index(input) +1
+            version = int(sys.argv[find_index])
             print("Generating kml files...")
-            Present()
+            Present(version)
             print("Kml files have been generated.")
 
     if filter_data:
         if "distance" not in dir():
-            distance = 0
+            distance = 0.05
         Filter_csv(version=version, min_distance=distance)
 
     if cell_created:
