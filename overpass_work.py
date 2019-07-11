@@ -1194,7 +1194,8 @@ def Helpfunc(verbose=False):
         overpass_work.py query 40.0853,-75.4005,40.1186,-75.3549                 Initialize an overpass api query
         overpass_work.py filter_version 2 distance .05                           Filter the data from the initial overpass api query and accept a user specified distance
         overpass_work.py cell 40.08 -75.4 40.09 -75.38                           Run the refined query and analyze data inside defined cell 
-        overpass_work.py cell 40.08 -75.4 40.09 -75.38 cell 50 -76 51 -76.5      Generate a list of cells to be analyzed\n\n
+        overpass_work.py cell 40.08 -75.4 40.09 -75.38 cell 50 -76 51 -76.5      Generate a list of cells to be analyzed
+        overpass_work.py present                                                 Generates a kml file for presentation\n\n
         The filter and cell methods of this tool expect that a query to the overpass api has already been made and stored.
         Future iteration of this tool will allow for cells to be read through csv files.
         """
@@ -1210,6 +1211,7 @@ def Helpfunc(verbose=False):
         cell {co-ordinates|file}     Trigger a refined analysis of the original query with in the specified plane. Additionally multiple cells 
                                      can be defined with a single execution. Alternatively a file containing multiple cell co-ordinates can be
                                      specified at run time.
+        present                      Genereates a kml file for presentation
         """
         print(message)
 
@@ -1943,3 +1945,4 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     #     overpass_work.py filter_version 2 distance .05                           Filter the data from the initial overpass api query and accept a user specified distance
     #     overpass_work.py cell 40.08 -75.4 40.09 -75.38                           Run the refined query and analyze data inside defined cell
     #     overpass_work.py cell 40.08 -75.4 40.09 -75.38 cell 50 -76 51 -76.5      Generate a list of cells to be analyzed\n\n
+    #     overpass_work.py cell present                                            Generate a kml for presentation
