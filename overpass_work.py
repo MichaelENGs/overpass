@@ -1709,12 +1709,12 @@ def Generate_presentation_coordinates(bbox,recurse=False,ret_lst=None):
     :return:
     """
 
-    print(bbox)
+    # print(bbox)
     # Check if list was passed
     if isinstance(bbox[0],list):
         cell_list = bbox
         cells = []
-        print(cell_list)
+        # print(cell_list)
         ret_lst = []
         for bbox in cell_list:
             ret_lst = Generate_presentation_coordinates(bbox, True, ret_lst)
@@ -1749,9 +1749,9 @@ def Present():
     with open("analysis_meta.txt","r") as fp:
         data = fp.read()
     data = data.split("\n")
-    print(data)
+    # print(data)
     bbox = data[0].split(",")
-    print("bbox before func",bbox)
+    # print("bbox before func",bbox)
     bounding_box_coordinates = Generate_presentation_coordinates(bbox[:])
 
     # generate bbox kml file
@@ -1818,7 +1818,7 @@ def Present():
         cell_list.append(x.split())
     cell_list = Generate_presentation_coordinates(cell_list)
     cell_number = 0
-    print("final cell list", cell_list)
+    # print("final cell list", cell_list)
     for cell in cell_list:
         cell_kml = """
        	<!--Cell wall-->
@@ -1846,7 +1846,7 @@ def Present():
             # name = ""
             # for x in data[0].split()[1:]:
             #     name +=" "+x
-            print(coordinates)
+            # print(coordinates)
             node_kml="""
             	<Placemark>
 	            <styleUrl>#dot</styleUrl>
@@ -1859,7 +1859,7 @@ def Present():
             kml_to_write.append(node_kml)
 
     with open("Present analysis.kml", "w+",encoding="utf-8") as fp:
-        print(header)
+        # print(header)
         fp.write(header)
         for feature in kml_to_write:
             fp.write(feature)
