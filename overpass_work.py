@@ -1843,20 +1843,19 @@ def Present():
             if "Lat" in data or data ==[]:
                 continue
             coordinates = data[-1]+","+data[-2]
-            name = ""
-            for x in data[0].split()[1:]:
-                name +=" "+x
+            # name = ""
+            # for x in data[0].split()[1:]:
+            #     name +=" "+x
             print(coordinates)
             node_kml="""
             	<Placemark>
 	            <styleUrl>#dot</styleUrl>
-                <name>%s</name>
 	            <altitudeMode>absolute</altitudeMode>
                 <Point>
                 <coordinates>%s</coordinates>
                 </Point>
 	            </Placemark>
-            """ % (name,coordinates)
+            """ % (coordinates)
             kml_to_write.append(node_kml)
 
     with open("Present analysis.kml", "w+",encoding="utf-8") as fp:
