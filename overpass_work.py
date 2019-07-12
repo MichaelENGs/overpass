@@ -1365,9 +1365,12 @@ def SecondQ(cell_list):
         previous_lon = None
         previous_lat = None
         for cell in cell_list:  # loop cell by cell
+
+            # Check for single cell
             if isinstance(cell_list, str):
                 cell = cell_list
                 more_loops = False
+
             road_length = 0
             total_road_length = 0
             cell_data = cell + "_" + str(cell_id)
@@ -1381,10 +1384,8 @@ def SecondQ(cell_list):
                     if data == []:
                         continue
                     # Create and write header
-
                     if "Road #/id" in data:
                         if not header_written:
-                            # print("here")
                             pretty_list = [x for x in data]
                             pretty_list.insert(0, "cell id/bbox")
                             writer.writerow(pretty_list)
@@ -1397,10 +1398,19 @@ def SecondQ(cell_list):
                     way, node, lat, lon = data
                     current_coordinates = [float(lat), float(lon)]
                     row_to_write = [cell_data, way, node, lat, lon]
-                    if Isincell(current_coordinates, cell):
+                    # Check if node is in the cell and for duplicate data
+                    if Isincell(current_coordinates, cell) and node != previous_node:
                         writer.writerow(row_to_write)
-                        if way == previous_way:
+                        # Check if on the same street
+                        if way == previous_way and Isincell(previous_coordinates,cell):
+
+                            previous_coordinates = [math.radians(x) for x in previous_coordinates]
+                            current_coordinates = [math.radians(x) for x in current_coordinates]
                             road_length = Calculate_distance(previous_coordinates, current_coordinates)
+
+                            # Debug statement
+                            # print(cell_id,road_length,node,previous_node)
+
                             # Calculate road densities
                             total_road_length += road_length
 
@@ -1807,7 +1817,7 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
         cell_list.append(formatted_data)
         index_in_reader = reader.line_num + 1
         if length_of_reader - index_in_reader > 0:
-            return Generate_cell_list(cell_list, reader[1:])
+            return Generate_cell_list(cell_list, reader)
     fp.close()
     del reader
     return cell_list
