@@ -1318,6 +1318,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     Qstring = """[out:xml][bbox:%s];
     (
       way[highway];
+      node[highway];
     );
     out body;
     (._;>;);
@@ -1400,26 +1401,13 @@ def SecondQ(cell_list):
                         writer.writerow(row_to_write)
                         if way == previous_way:
                             road_length = Calculate_distance(previous_coordinates, current_coordinates)
-
-                    # Check to see way crosses cell boundary
-                    if way == previous_way and \
-                            previous_coordinates != current_coordinates and not \
-                            Isincell(previous_coordinates, cell) and Isincell(current_coordinates,cell):
-                        boundary_coordinates = Generate_boundary_coordinates(previous_coordinates, current_coordinates,
-                                                                             cell)
-                        node = "Generated node # %d" % node_id
-                        node_id += 1
-                        lat, lon = boundary_coordinates
-                        row_to_write = [cell_data, way, node, lat, lon]
-                        writer.writerow(row_to_write)
-                        road_length = Calculate_distance(previous_coordinates, boundary_coordinates)
+                            # Calculate road densities
+                            total_road_length += road_length
 
                     # set data for next loop
                     previous_way, previous_node, previous_lat, previous_lon = data
                     previous_coordinates = [float(previous_lat), float(previous_lon)]
 
-                    # Calculate road densities
-                    total_road_length += road_length
             with open("Road density analysis.csv", "a", newline="") as nnfp:
                 cell_writer = csv.writer(nnfp)
                 row_to_write = [cell_data, "total road length(km): %f" % total_road_length]
@@ -1592,19 +1580,14 @@ def calculate_new_node(start_set, end_set, distance, distance_bt_points):
 def create_new_nodes_on_road(nodes_on_road, min_distance, generated_node_num):
     updated_nodes = list()
     cur_node = nodes_on_road[0]
-    print(nodes_on_road)
     for i in nodes_on_road[1:]:
         end_node = i
         cur_coordinates = [math.radians(float(x)) for x in cur_node[-2:]]  # Unpack and convert lat and lon
         end_coordinates = [math.radians(float(x)) for x in end_node[2:4]]
         distance = round(Calculate_distance(cur_coordinates, end_coordinates), epsilon)
-        print("in for")
         while distance > min_distance:
-            print("in while",distance,min_distance)
             if cur_node not in updated_nodes:
-                print("logic")
                 updated_nodes.append(cur_node)
-
             # Generate a new node min_distance from the first node (cur_node)
             generated_node_num += 1
             new_node = copy(cur_node)
@@ -1838,7 +1821,6 @@ def Generate_presentation_coordinates(bbox,recurse=False,ret_lst=None):
     :return:
     """
 
-    print(bbox)
     # Check if list was passed
     if isinstance(bbox[0],list):
         cell_list = bbox
