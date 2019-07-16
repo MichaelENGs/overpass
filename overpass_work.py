@@ -1364,6 +1364,7 @@ def SecondQ(cell_list):
         header_written = False
         previous_lon = None
         previous_lat = None
+        print(cell_list)
         for cell in cell_list:  # loop cell by cell
 
             # Check for single cell
@@ -1373,6 +1374,7 @@ def SecondQ(cell_list):
 
             road_length = 0
             total_road_length = 0
+            print(cell)
             cell_data = cell + "_" + str(cell_id)
             # open data
 
@@ -1689,7 +1691,8 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
     :param length_of_reader:
     :return:
     """
-
+    print(csvobj)
+    print(csvobj is None)
     if csvobj is None:
         fp = open(cell_file,"r")
         reader = csv.reader(fp)
@@ -1705,8 +1708,10 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
         cell_list.append(formatted_data)
         index_in_reader = reader.line_num + 1
         if length_of_reader - index_in_reader > 0:
-            return Generate_cell_list(cell_list, reader)
-    fp.close()
+            print(reader)
+            yield Generate_cell_list(cell_list,csvobj=reader, reader=reader)
+    if fp in dir():
+        fp.close()
     del reader
     return cell_list
 
@@ -1893,6 +1898,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             if sys.argv[find_index][-4:] == ".csv":
                 print("Generating cell list from file")
                 cell_cordinates = Generate_cell_list(sys.argv[find_index])
+                print("cell coordinates", cell_cordinates)
             else:
                 end_index = find_index + 5
                 cell_cordinates = [x for x in sys.argv[find_index:end_index]]
