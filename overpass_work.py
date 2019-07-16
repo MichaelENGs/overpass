@@ -1364,7 +1364,6 @@ def SecondQ(cell_list):
         header_written = False
         previous_lon = None
         previous_lat = None
-        print(cell_list)
         for cell in cell_list:  # loop cell by cell
 
             # Check for single cell
@@ -1374,11 +1373,10 @@ def SecondQ(cell_list):
 
             road_length = 0
             total_road_length = 0
-            print(cell)
             cell_data = cell + "_" + str(cell_id)
             # open data
 
-            with open("Filtered results version_3.csv", "r") as fp:
+            with open("Filtered results.csv", "r") as fp:
                 reader = csv.reader(fp)
                 # read data
                 for data in reader:
@@ -1680,7 +1678,7 @@ def Filter_csv(min_distance=0.05):
                     nodes_on_road.append(mdata)
 
 
-def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,length_of_reader=None):
+def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],length_of_reader=None):
     """
     This function will support the generation of a cell list via the input file.
 
@@ -1691,8 +1689,7 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
     :param length_of_reader:
     :return:
     """
-    print(csvobj)
-    print(csvobj is None)
+
     if csvobj is None:
         fp = open(cell_file,"r")
         reader = csv.reader(fp)
@@ -1701,6 +1698,9 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
         del reader
         fp = open(cell_file, "r")
         reader = csv.reader(fp)
+    else:
+        reader = csvobj
+
     for data in reader:
         if data == []:
             continue
@@ -1708,10 +1708,8 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
         cell_list.append(formatted_data)
         index_in_reader = reader.line_num + 1
         if length_of_reader - index_in_reader > 0:
-            print(reader)
-            yield Generate_cell_list(cell_list,csvobj=reader, reader=reader)
-    if fp in dir():
-        fp.close()
+            return Generate_cell_list(cell_list,csvobj=reader,length_of_reader=length_of_reader)
+    #fp.close()
     del reader
     return cell_list
 
@@ -1751,7 +1749,7 @@ def Generate_presentation_coordinates(bbox,recurse=False,ret_lst=None):
         return coordinate_pairs
 
 
-def Present(version=3):
+def Present():
     """
     This function is meant for the purposes of presentation. It will read from the meta data file collected during the
     analysis portion of the program and generate kml files based on that data.
@@ -1851,7 +1849,7 @@ def Present(version=3):
         kml_to_write.append(cell_kml)
 
     # Generate kml from saved coordinates
-    with open("Filtered Results version_%s.csv" % version,"r") as fp:
+    with open("Filtered Results.csv","r") as fp:
         reader = csv.reader(fp)
         for data in reader:
             if "Lat" in data or data ==[]:
@@ -1898,7 +1896,6 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             if sys.argv[find_index][-4:] == ".csv":
                 print("Generating cell list from file")
                 cell_cordinates = Generate_cell_list(sys.argv[find_index])
-                print("cell coordinates", cell_cordinates)
             else:
                 end_index = find_index + 5
                 cell_cordinates = [x for x in sys.argv[find_index:end_index]]
@@ -1938,10 +1935,8 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             filter_data = True
 
         if "present" == input:
-            find_index = sys.argv.index(input) +1
-            version = int(sys.argv[find_index])
             print("Generating kml files...")
-            Present(version)
+            Present()
             print("Kml files have been generated.")
 
     if filter_data:
@@ -1950,6 +1945,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
         Filter_csv(min_distance=distance)
 
     if cell_created:
+        print("Preforming refined analysis...")
         SecondQ(cell_cordinates)
         with open("analysis_meta.txt", "a+") as fp:
             for cell in cell_cordinates:
