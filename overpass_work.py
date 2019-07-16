@@ -1353,83 +1353,87 @@ def SecondQ(cell_list):
     """
 
     global output_filename
+    output_index = 0
 
     with open("analysis_meta.txt","r") as fp:
         data = fp.read()
         bbox = data.split("\n")[0]
 
-    more_loops = True
-    with open(output_filename+".csv", "w+", newline="") as nfp:
-        writer = csv.writer(nfp)
-        cell_id = 0  # initialize cell id
-        node_id = 0  # initialize node id
-        previous_node = None
-        previous_way = None
-        previous_coordinates = None
-        header_written = False
-        previous_lon = None
-        previous_lat = None
-        for cell in cell_list:  # loop cell by cell
+    inputs = [x[:-7] for x in os.listdir() if "_PQ.csv" in x]
+    for query in inputs:
+        more_loops = True
+        with open(output_filename+"_%d_SQ.csv" % output_index, "w+", newline="") as nfp:
+            output_index +=1
+            writer = csv.writer(nfp)
+            cell_id = 0  # initialize cell id
+            node_id = 0  # initialize node id
+            previous_node = None
+            previous_way = None
+            previous_coordinates = None
+            header_written = False
+            previous_lon = None
+            previous_lat = None
+            for cell in cell_list:  # loop cell by cell
 
-            # Check for single cell
-            if isinstance(cell_list, str):
-                cell = cell_list
-                more_loops = False
+                # Check for single cell
+                if isinstance(cell_list, str):
+                    cell = cell_list
+                    more_loops = False
 
-            road_length = 0
-            total_road_length = 0
-            cell_data = cell + "_" + str(cell_id)
-            # open data
+                road_length = 0
+                total_road_length = 0
+                cell_data = cell + "_" + str(cell_id)
+                # open data
 
-            with open("Filtered %s.csv" % input_filename, "r") as fp:
-                reader = csv.reader(fp)
-                # read data
-                for data in reader:
-                    #print(data)
-                    if data == []:
-                        continue
-                    # Create and write header
-                    if "Road #/id" in data:
-                        if not header_written:
-                            pretty_list = [x for x in data]
-                            pretty_list.insert(0, "cell id/bbox")
-                            writer.writerow(pretty_list)
-                            header_written = True
+                with open("Filtered %s.csv" % query, "r") as fp:
+                    reader = csv.reader(fp)
+                    # read data
+                    for data in reader:
+                        #print(data)
+                        if data == []:
                             continue
-                        else:
-                            continue
+                        # Create and write header
+                        if "Road #/id" in data:
+                            if not header_written:
+                                pretty_list = [x for x in data]
+                                pretty_list.insert(0, "cell id/bbox")
+                                writer.writerow(pretty_list)
+                                header_written = True
+                                continue
+                            else:
+                                continue
 
-                    # organize data
-                    way, node, lat, lon = data
-                    current_coordinates = [float(lat), float(lon)]
-                    row_to_write = [cell_data, way, node, lat, lon]
-                    # Check if node is in the cell and for duplicate data
-                    if Isincell(current_coordinates, cell) and node != previous_node:
-                        writer.writerow(row_to_write)
-                        # Check if on the same street
-                        if way == previous_way and Isincell(previous_coordinates,cell):
+                        # organize data
+                        way, node, lat, lon = data
+                        current_coordinates = [float(lat), float(lon)]
+                        row_to_write = [cell_data, way, node, lat, lon]
+                        # Check if node is in the cell and for duplicate data
+                        if Isincell(current_coordinates, cell) and node != previous_node:
+                            writer.writerow(row_to_write)
+                            # Check if on the same street
+                            if way == previous_way and Isincell(previous_coordinates,cell):
 
-                            previous_coordinates = [math.radians(x) for x in previous_coordinates]
-                            current_coordinates = [math.radians(x) for x in current_coordinates]
-                            road_length = Calculate_distance(previous_coordinates, current_coordinates)
+                                previous_coordinates = [math.radians(x) for x in previous_coordinates]
+                                current_coordinates = [math.radians(x) for x in current_coordinates]
+                                road_length = Calculate_distance(previous_coordinates, current_coordinates)
 
-                            # Debug statement
-                            # print(cell_id,road_length,node,previous_node)
+                                # Debug statement
+                                # print(cell_id,road_length,node,previous_node)
 
-                            # Calculate road densities
-                            total_road_length += road_length
+                                # Calculate road densities
+                                total_road_length += road_length
 
-                    # set data for next loop
-                    previous_way, previous_node, previous_lat, previous_lon = data
-                    previous_coordinates = [float(previous_lat), float(previous_lon)]
+                        # set data for next loop
+                        previous_way, previous_node, previous_lat, previous_lon = data
+                        previous_coordinates = [float(previous_lat), float(previous_lon)]
 
-            with open("Road density analysis.csv", "a", newline="") as nnfp:
-                cell_writer = csv.writer(nnfp)
-                row_to_write = [cell_data, "total road length(km): %f" % total_road_length]
-                cell_writer.writerow(row_to_write)
-            cell_id += 1  # Increment cell id
-            if not more_loops:
-                return
+                with open(output_filename+" total_%d.csv" % output_index, "w+", newline="") as nnfp:
+                    cell_writer = csv.writer(nnfp)
+                    row_to_write = [cell_data, "total road length(km): %f" % total_road_length]
+                    cell_writer.writerow(row_to_write)
+                cell_id += 1  # Increment cell id
+                if not more_loops:
+                    return
 
 
 def Isincell(node, cell):
