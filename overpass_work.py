@@ -1772,31 +1772,38 @@ def Present():
     with open("analysis_meta.txt","r") as fp:
         data = fp.read()
     data = data.split("\n")
+    index = data.index("cells:")
     # print(data)
-    bbox = data[0].split(",")
+    bboxs = data[1:index]
+    index +=1
+    kml_to_write = list()
+    for bbox in bboxs:
+        bbox=bbox.split()
     # print("bbox before func",bbox)
-    bounding_box_coordinates = Generate_presentation_coordinates(bbox[:])
+        bounding_box_coordinates = Generate_presentation_coordinates(bbox[:])
 
-    # generate bbox kml file
-    bbox = """<Placemark>
-	  <name>Bounding Box</name>
-	  <styleUrl>#bbox</styleUrl>
-	  <LineString>
-	  <altitudeMode>absolute</altitudeMode>
-		<extrude>1</extrude>
-		<coordinates>
-		
-		  %s
-		
-		</coordinates>
-	  </LineString>
-	</Placemark>
-    """ % bounding_box_coordinates
-    kml_to_write = [bbox]
-    # with open("bbox.kml", "w+") as fp:
-    #     fp.write(bbox)
+        # generate bbox kml file
+        bbox = """
+        <Placemark>
+          <name>Bounding Box</name>
+          <styleUrl>#bbox</styleUrl>
+          <LineString>
+          <altitudeMode>absolute</altitudeMode>
+            <extrude>1</extrude>
+            <coordinates>
+            
+              %s
+            
+            </coordinates>
+          </LineString>
+        </Placemark>
+        """ % bounding_box_coordinates
+        kml_to_write.append(bbox)
+        # with open("bbox.kml", "w+") as fp:
+        #     fp.write(bbox)
 
-    # generate cell kml file
+        # generate cell kml file
+
     header = """<?xml version="1.0" encoding="UTF-8"?>
 
 <!--UNCLASSIFIED-->
@@ -1837,7 +1844,7 @@ def Present():
 </kml>
 <!--UNCLASSIFIED-->"""
     cell_list = []
-    for x in data[1:]:
+    for x in data[index:-1]:
         cell_list.append(x.split())
     cell_list = Generate_presentation_coordinates(cell_list)
     cell_number = 0
@@ -1860,26 +1867,28 @@ def Present():
         kml_to_write.append(cell_kml)
 
     # Generate kml from saved coordinates
-    with open("Filtered Results.csv","r") as fp:
-        reader = csv.reader(fp)
-        for data in reader:
-            if "Lat" in data or data ==[]:
-                continue
-            coordinates = data[-1]+","+data[-2]
-            # name = ""
-            # for x in data[0].split()[1:]:
-            #     name +=" "+x
-            # print(coordinates)
-            node_kml="""
-            	<Placemark>
-	            <styleUrl>#dot</styleUrl>
-	            <altitudeMode>absolute</altitudeMode>
-                <Point>
-                <coordinates>%s</coordinates>
-                </Point>
-	            </Placemark>
-            """ % (coordinates)
-            kml_to_write.append(node_kml)
+    inputs = [x for x in os.listdir() if "Filtered" in x]
+    for file in inputs:
+        with open(file,"r") as fp:
+            reader = csv.reader(fp)
+            for data in reader:
+                if "Lat" in data or data ==[]:
+                    continue
+                coordinates = data[-1]+","+data[-2]
+                # name = ""
+                # for x in data[0].split()[1:]:
+                #     name +=" "+x
+                # print(coordinates)
+                node_kml="""
+                    <Placemark>
+                    <styleUrl>#dot</styleUrl>
+                    <altitudeMode>absolute</altitudeMode>
+                    <Point>
+                    <coordinates>%s</coordinates>
+                    </Point>
+                    </Placemark>
+                """ % (coordinates)
+                kml_to_write.append(node_kml)
 
     with open("Present analysis.kml", "w+",encoding="utf-8") as fp:
         # print(header)
@@ -1908,6 +1917,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
 
     cell_created = False
     filter_data = False
+    multi=False
     cell_cordinates = []
     cell_count = 0
     for input in sys.argv:
@@ -1923,6 +1933,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
                 cell_cordinates = Generate_cell_list(sys.argv[find_index])
                 find_index+=1
                 output_filename = sys.argv[find_index]
+                multi = True
             else:
                 end_index = find_index + 5
                 cell_cordinates = [x for x in sys.argv[find_index:end_index]]
@@ -1954,6 +1965,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
                 output_filename = sys.argv[find_index]
                 MultipleQ(extent_coordinates)
                 print("All queries generated.")
+                multi = True
                 continue
             end_index = find_index + 5
             extent = [x for x in sys.argv[find_index:end_index]]
@@ -1975,6 +1987,21 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             print("Generating kml files...")
             Present()
             print("Kml files have been generated.")
+
+    if multi:
+        mode = "a"
+        if "analysis_meta" in os.listdir():
+            mode = "w+"
+        with open("analysis_meta.txt", mode) as fp:
+            if not cell_created:
+                fp.write("bboxs:\n")
+                for extent in extent_coordinates:
+                    fp.write(extent + "\n")
+
+            if cell_created:
+                fp.write("cells:\n")
+                for cell in cell_cordinates:
+                    fp.write(cell+"\n")
 
     if filter_data:
         if "distance" not in dir():
