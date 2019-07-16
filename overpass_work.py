@@ -1364,6 +1364,8 @@ def SecondQ(cell_list):
         header_written = False
         previous_lon = None
         previous_lat = None
+        road_spans_cell = False
+        road_segment = 0
         print(cell_list)
         for cell in cell_list:  # loop cell by cell
 
@@ -1402,10 +1404,11 @@ def SecondQ(cell_list):
                     row_to_write = [cell_data, way, node, lat, lon]
                     # Check if node is in the cell and for duplicate data
                     if Isincell(current_coordinates, cell) and node != previous_node:
+                        if road_spans_cell:
+                            row_to_write[1] += "_segment_%d" % road_segment
                         writer.writerow(row_to_write)
                         # Check if on the same street
-                        if way == previous_way and Isincell(previous_coordinates,cell):
-
+                        if way == previous_way and Isincell(previous_coordinates, cell):
                             previous_coordinates = [math.radians(x) for x in previous_coordinates]
                             current_coordinates = [math.radians(x) for x in current_coordinates]
                             road_length = Calculate_distance(previous_coordinates, current_coordinates)
@@ -1415,6 +1418,14 @@ def SecondQ(cell_list):
 
                             # Calculate road densities
                             total_road_length += road_length
+                    else:
+                        if way == previous_way and Isincell(previous_coordinates, cell):
+                                road_segment += 1
+                                # and the previous node was in the cell
+                                road_spans_cell = True  # create a flag indicating that the road spans cell boundaries
+                        else:
+                            road_spans_cell = False
+                            road_segment = 0
 
                     # set data for next loop
                     previous_way, previous_node, previous_lat, previous_lon = data
