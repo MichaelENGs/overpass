@@ -1159,7 +1159,7 @@ class Salzarulo_Overpass_Query(object):
             e = "Query error"
         else:
             content_type = f.getheader("Content-Type")
-            with open("Query result.xml", "w+") as fp:
+            with open(output_filename+".xml", "w+") as fp:
                 fp.write(response.decode("utf-8"))
             return self.parse_xml(response)
 
@@ -1326,8 +1326,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     api = Salzarulo_Overpass_Query()  # Generate an overpass query object
     result = api.query(Qstring)  # Method to query api results in parsed data
     print("Query successful")  # Message to user
-
-    with open("Query Result.csv", "w+", newline="") as csvfp:  # Open file with handeler
+    with open(output_filename+".csv", "w+", newline="") as csvfp:  # Open file with handeler
         print("Generating csv file ...")  # Message to user
         header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
@@ -1882,6 +1881,20 @@ def Present():
     cell_number +=1
 
 
+def MultipleQ(extent_list):
+
+    global output_filename
+    primaryQ_count = 0
+    output_filename +="_%d" % primaryQ_count
+    for extent in extent_list:
+        extent = ",".join(extent.split())
+        PrimaryQ(extent)
+        primaryQ_count +=1
+        output_filename = output_filename[:-2]
+        output_filename += "_%d" % primaryQ_count
+    output_filename = "foo"
+
+
 if __name__ == "__main__":  # The function calls in this section will be executed when this script is run from the command line
 
     cell_created = False
@@ -1925,6 +1938,14 @@ if __name__ == "__main__":  # The function calls in this section will be execute
 
         if "query" == input:
             find_index = sys.argv.index(input) + 1
+            if sys.argv[find_index][-4:] == ".csv":
+                print("Preforming multiple Overpass queries this may take a few minutes...")
+                extent_coordinates = Generate_cell_list(sys.argv[find_index])
+                find_index +=1
+                output_filename = sys.argv[find_index]
+                MultipleQ(extent_coordinates)
+                print("All queries generated.")
+                continue
             end_index = find_index + 5
             extent = [x for x in sys.argv[find_index:end_index]]
             extent = ",".join(extent)
