@@ -1338,6 +1338,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     print("File Generated in %s" % os.getcwd())  # Message to user
 
 
+global output_filename
 def SecondQ(cell_list):
     """
     Refined query, this function will break down the data into user defined cells and generate two output files.
@@ -1349,12 +1350,14 @@ def SecondQ(cell_list):
     :return:
     """
 
+    global output_filename
+
     with open("analysis_meta.txt","r") as fp:
         data = fp.read()
         bbox = data.split("\n")[0]
 
     more_loops = True
-    with open("Cell separated data.csv", "w+", newline="") as nfp:
+    with open(output_filename, "w+", newline="") as nfp:
         writer = csv.writer(nfp)
         cell_id = 0  # initialize cell id
         node_id = 0  # initialize node id
@@ -1896,11 +1899,14 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             if sys.argv[find_index][-4:] == ".csv":
                 print("Generating cell list from file")
                 cell_cordinates = Generate_cell_list(sys.argv[find_index])
+                find_index+=1
+                output_filename = sys.argv[find_index]
             else:
                 end_index = find_index + 5
                 cell_cordinates = [x for x in sys.argv[find_index:end_index]]
                 cell_cordinates = " ".join(cell_cordinates)
                 # print(cell_cordinates)
+                output_filename = "Cell separated data.csv"
             cell_created = True
         if "cell" == input and sys.argv.count("cell") > 1 and not cell_created:
             cell_count = sys.argv.index(input, cell_count, len(sys.argv))
@@ -1915,6 +1921,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             # print(len(sys.argv) - cell_count)
             if len(sys.argv) - cell_count < 4:
                 cell_created = True
+                output_filename = "Cell separated data.csv"
 
         if "query" == input:
             find_index = sys.argv.index(input) + 1
