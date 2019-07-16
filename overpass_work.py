@@ -25,6 +25,7 @@ from constants import epsilon, radius_of_earth
 
 output_filename = "Default"
 input_filename = "Default"
+query_index = 0
 generated_node_num = 0
 sys.setrecursionlimit(2000)  # Heuristic value
 # -----------------------------------------------------------------------------------------------------------------------
@@ -1162,7 +1163,7 @@ class Salzarulo_Overpass_Query(object):
             e = "Query error"
         else:
             content_type = f.getheader("Content-Type")
-            with open(output_filename+".xml", "w+") as fp:
+            with open(output_filename+"_PQ.xml", "w+") as fp:
                 fp.write(response.decode("utf-8"))
             return self.parse_xml(response)
 
@@ -1329,7 +1330,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     api = Salzarulo_Overpass_Query()  # Generate an overpass query object
     result = api.query(Qstring)  # Method to query api results in parsed data
     print("Query successful")  # Message to user
-    with open(output_filename+".csv", "w+", newline="") as csvfp:  # Open file with handeler
+    with open(output_filename+"_PQ.csv", "w+", newline="") as csvfp:  # Open file with handeler
         print("Generating csv file ...")  # Message to user
         header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
@@ -1380,7 +1381,7 @@ def SecondQ(cell_list):
             cell_data = cell + "_" + str(cell_id)
             # open data
 
-            with open("Filtered results.csv", "r") as fp:
+            with open("Filtered %s.csv" % input_filename, "r") as fp:
                 reader = csv.reader(fp)
                 # read data
                 for data in reader:
@@ -1627,7 +1628,7 @@ def Create_new_nodes_on_road(nodes_on_road, min_distance):
     return updated_nodes
 
 
-def Filter_csv(min_distance=0.05):
+def Filter_csv(min_distance=0.05,multi_filter=True):
     """
     Loops over each road and creates waypoints min_distance from previous waypoint.
     The location of new way point is determined by using the original waypoints to move min_distance along the road.
@@ -1640,45 +1641,48 @@ def Filter_csv(min_distance=0.05):
     if min_distance is None:  # Check if minimum distance is defined
         min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
 
-    with open(input_filename+".csv", "r", newline='') as Master_List, open("Filtered Results_%s.csv" % input_filename[-1], "w+",newline="") as Child_List: # Set file handlers
-        Master_Read = csv.reader(Master_List)  # Create read object
-        Child_Write = csv.writer(Child_List)  # Create write object
+    if multi_filter:
+        inputs = [x[:-7] for x in os.listdir() if "_PQ.csv" in x]
+        for query in inputs:
+            with open(query+"_PQ.csv", "r", newline='') as Master_List, open("Filtered %s.csv" % query, "w+",newline="") as Child_List: # Set file handlers
+                Master_Read = csv.reader(Master_List)  # Create read object
+                Child_Write = csv.writer(Child_List)  # Create write object
 
-        row_num = 0
-        start_road_name = None  # Keeps track of the current road being evaluated
-        nodes_on_road = list()
-        global generated_node_num
-        for mdata in Master_Read:
-            row_num += 1
-            # If it is the first row in the file the print our the header row
-            if row_num == 1:
-                Header_write([mdata], Child_Write)
-                continue
-            if mdata == []:  # Check if anything was read
-                continue  # Skip loop
+                row_num = 0
+                start_road_name = None  # Keeps track of the current road being evaluated
+                nodes_on_road = list()
+                global generated_node_num
+                for mdata in Master_Read:
+                    row_num += 1
+                    # If it is the first row in the file the print our the header row
+                    if row_num == 1:
+                        Header_write([mdata], Child_Write)
+                        continue
+                    if mdata == []:  # Check if anything was read
+                        continue  # Skip loop
 
-            if start_road_name is None:
-                # Once a new road is found......
-                # begin repopulating the list that stores all of the nodes on a single road
-                nodes_on_road.append(mdata)
-                # and then store the name of the road
-                start_road_name = mdata[0]
-                continue
-            else:
-                if not mdata[0] == start_road_name:
-                    # Perform calculations to determine distance between start and end
-                    # number of points that can fit and compute the actual points to a csv
-                    updated_points = Create_new_nodes_on_road(nodes_on_road, min_distance)
-                    Child_Write.writerows(updated_points)
-                    # Wipe out all of the nodes that were being evaluated on this road
-                    nodes_on_road.clear()
-                    # Begin storing nodes on this new road
-                    nodes_on_road.append(mdata)
-                    # We are about to begin evaluating a new road so updated road name
-                    start_road_name = mdata[0]
-                else:
-                    # If we are evaluating a node on the current road, then add this node to the list
-                    nodes_on_road.append(mdata)
+                    if start_road_name is None:
+                        # Once a new road is found......
+                        # begin repopulating the list that stores all of the nodes on a single road
+                        nodes_on_road.append(mdata)
+                        # and then store the name of the road
+                        start_road_name = mdata[0]
+                        continue
+                    else:
+                        if not mdata[0] == start_road_name:
+                            # Perform calculations to determine distance between start and end
+                            # number of points that can fit and compute the actual points to a csv
+                            updated_points = Create_new_nodes_on_road(nodes_on_road, min_distance)
+                            Child_Write.writerows(updated_points)
+                            # Wipe out all of the nodes that were being evaluated on this road
+                            nodes_on_road.clear()
+                            # Begin storing nodes on this new road
+                            nodes_on_road.append(mdata)
+                            # We are about to begin evaluating a new road so updated road name
+                            start_road_name = mdata[0]
+                        else:
+                            # If we are evaluating a node on the current road, then add this node to the list
+                            nodes_on_road.append(mdata)
 
 
 def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],length_of_reader=None):
@@ -1956,8 +1960,6 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             PrimaryQ(extent)
 
         if "filter" == input:
-            find_index = sys.argv.index(input) + 1
-            input_filename = sys.argv[find_index]
             filter_data = True
         if "distance" == input:
             find_index = sys.argv.index(input) + 1
