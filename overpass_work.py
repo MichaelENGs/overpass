@@ -23,6 +23,9 @@ from xml.sax import handler, make_parser
 
 from constants import epsilon, radius_of_earth
 
+output_filename = "Default"
+input_filename = "Default"
+generated_node_num = 0
 sys.setrecursionlimit(2000)  # Heuristic value
 # -----------------------------------------------------------------------------------------------------------------------
 ## The following is ammended from the original version found at:
@@ -1337,7 +1340,6 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     print("File Generated in %s" % os.getcwd())  # Message to user
 
 
-global output_filename
 def SecondQ(cell_list):
     """
     Refined query, this function will break down the data into user defined cells and generate two output files.
@@ -1356,7 +1358,7 @@ def SecondQ(cell_list):
         bbox = data.split("\n")[0]
 
     more_loops = True
-    with open(output_filename, "w+", newline="") as nfp:
+    with open(output_filename+".csv", "w+", newline="") as nfp:
         writer = csv.writer(nfp)
         cell_id = 0  # initialize cell id
         node_id = 0  # initialize node id
@@ -1625,7 +1627,6 @@ def Create_new_nodes_on_road(nodes_on_road, min_distance):
     return updated_nodes
 
 
-generated_node_num = 0
 def Filter_csv(min_distance=0.05):
     """
     Loops over each road and creates waypoints min_distance from previous waypoint.
@@ -1639,7 +1640,7 @@ def Filter_csv(min_distance=0.05):
     if min_distance is None:  # Check if minimum distance is defined
         min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
 
-    with open("Query Result.csv", "r", newline='') as Master_List, open("Filtered Results.csv", "w+",newline="") as Child_List: # Set file handlers
+    with open(input_filename+".csv", "r", newline='') as Master_List, open("Filtered Results_%s.csv" % input_filename[-1], "w+",newline="") as Child_List: # Set file handlers
         Master_Read = csv.reader(Master_List)  # Create read object
         Child_Write = csv.writer(Child_List)  # Create write object
 
@@ -1955,6 +1956,8 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             PrimaryQ(extent)
 
         if "filter" == input:
+            find_index = sys.argv.index(input) + 1
+            input_filename = sys.argv[find_index]
             filter_data = True
         if "distance" == input:
             find_index = sys.argv.index(input) + 1
