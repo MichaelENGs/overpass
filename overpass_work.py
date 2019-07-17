@@ -1366,7 +1366,6 @@ def SecondQ(cell_list):
         previous_lat = None
         road_spans_cell = False
         road_segment = 0
-        print(cell_list)
         for cell in cell_list:  # loop cell by cell
 
             # Check for single cell
@@ -1376,7 +1375,6 @@ def SecondQ(cell_list):
 
             road_length = 0
             total_road_length = 0
-            print(cell)
             cell_data = cell + "_" + str(cell_id)
             # open data
 
@@ -1401,7 +1399,6 @@ def SecondQ(cell_list):
                     # organize data
                     way, node, lat, lon = data
                     # Make sure that if we changed roads then we do not carry over whether or not the road spans a cell
-                    print("road span",road_spans_cell,"same street",(not way == previous_way))
                     if road_spans_cell and not way == previous_way:
                         road_spans_cell = False
                     current_coordinates = [float(lat), float(lon)]
@@ -1409,9 +1406,7 @@ def SecondQ(cell_list):
 
                     # Check if node is in the cell and for duplicate data
                     if Isincell(current_coordinates, cell) and node != previous_node:
-                        print("check road",road_spans_cell)
                         if road_spans_cell:
-                            print("here")
                             row_to_write[1] += "_segment_%d" % road_segment
                         writer.writerow(row_to_write)
 
@@ -1428,7 +1423,6 @@ def SecondQ(cell_list):
                             total_road_length += road_length
                     else:
                         if way == previous_way and Isincell(previous_coordinates, cell):
-                            print("flag set")
                             road_segment += 1
                             # and the previous node was in the cell
                             road_spans_cell = True  # create a flag indicating that the road spans cell boundaries
