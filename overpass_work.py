@@ -1380,7 +1380,7 @@ def SecondQ(cell_list):
             cell_data = cell + "_" + str(cell_id)
             # open data
 
-            with open("Filtered results version_3.csv", "r") as fp:
+            with open("Filtered results.csv", "r") as fp:
                 reader = csv.reader(fp)
                 # read data
                 for data in reader:
@@ -1401,15 +1401,20 @@ def SecondQ(cell_list):
                     # organize data
                     way, node, lat, lon = data
                     # Make sure that if we changed roads then we do not carry over whether or not the road spans a cell
+                    print("road span",road_spans_cell,"same street",(not way == previous_way))
                     if road_spans_cell and not way == previous_way:
                         road_spans_cell = False
                     current_coordinates = [float(lat), float(lon)]
                     row_to_write = [cell_data, way, node, lat, lon]
+
                     # Check if node is in the cell and for duplicate data
                     if Isincell(current_coordinates, cell) and node != previous_node:
+                        print("check road",road_spans_cell)
                         if road_spans_cell:
-                                row_to_write[1] += "_segment_%d" % road_segment
+                            print("here")
+                            row_to_write[1] += "_segment_%d" % road_segment
                         writer.writerow(row_to_write)
+
                         # Check if on the same street
                         if way == previous_way and Isincell(previous_coordinates, cell):
                             previous_coordinates = [math.radians(x) for x in previous_coordinates]
@@ -1423,10 +1428,11 @@ def SecondQ(cell_list):
                             total_road_length += road_length
                     else:
                         if way == previous_way and Isincell(previous_coordinates, cell):
-                                road_segment += 1
-                                # and the previous node was in the cell
-                                road_spans_cell = True  # create a flag indicating that the road spans cell boundaries
-                        else:
+                            print("flag set")
+                            road_segment += 1
+                            # and the previous node was in the cell
+                            road_spans_cell = True  # create a flag indicating that the road spans cell boundaries
+                        elif not way==previous_way:
                             road_spans_cell = False
                             road_segment = 0
 
@@ -1715,6 +1721,8 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
         del reader
         fp = open(cell_file, "r")
         reader = csv.reader(fp)
+    else:
+        reader=csvobj
     for data in reader:
         if data == []:
             continue
@@ -1723,9 +1731,9 @@ def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],reader=None,lengt
         index_in_reader = reader.line_num + 1
         if length_of_reader - index_in_reader > 0:
             print(reader)
-            yield Generate_cell_list(cell_list,csvobj=reader, reader=reader)
-    if fp in dir():
-        fp.close()
+            return Generate_cell_list(cell_list,csvobj=reader,length_of_reader=length_of_reader)
+    # if fp in dir():
+    #     fp.close()
     del reader
     return cell_list
 
@@ -1865,7 +1873,7 @@ def Present(version=3):
         kml_to_write.append(cell_kml)
 
     # Generate kml from saved coordinates
-    with open("Filtered Results version_%s.csv" % version,"r") as fp:
+    with open("Filtered Results.csv","r") as fp:
         reader = csv.reader(fp)
         for data in reader:
             if "Lat" in data or data ==[]:
@@ -1953,9 +1961,9 @@ if __name__ == "__main__":  # The function calls in this section will be execute
 
         if "present" == input:
             find_index = sys.argv.index(input) +1
-            version = int(sys.argv[find_index])
-            print("Generating kml files...")
-            Present(version)
+            # version = int(sys.argv[find_index])
+            # print("Generating kml files...")
+            Present()
             print("Kml files have been generated.")
 
     if filter_data:
