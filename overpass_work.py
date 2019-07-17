@@ -1400,12 +1400,15 @@ def SecondQ(cell_list):
 
                     # organize data
                     way, node, lat, lon = data
+                    # Make sure that if we changed roads then we do not carry over whether or not the road spans a cell
+                    if road_spans_cell and not way == previous_way:
+                        road_spans_cell = False
                     current_coordinates = [float(lat), float(lon)]
                     row_to_write = [cell_data, way, node, lat, lon]
                     # Check if node is in the cell and for duplicate data
                     if Isincell(current_coordinates, cell) and node != previous_node:
                         if road_spans_cell:
-                            row_to_write[1] += "_segment_%d" % road_segment
+                                row_to_write[1] += "_segment_%d" % road_segment
                         writer.writerow(row_to_write)
                         # Check if on the same street
                         if way == previous_way and Isincell(previous_coordinates, cell):
