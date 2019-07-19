@@ -1316,7 +1316,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     print("Sending query to overpass ... ")  # Message to user
     Qstring = """[out:xml][bbox:%s];
     (
-      way[highway];
+      way[highway=primary];
       node[highway];
     );
     out body;
@@ -1660,7 +1660,7 @@ def Filter_csv(min_distance, input_file, output_filename):
     if min_distance is None:  # Check if minimum distance is defined
         min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
 
-    with open(input_file, "r", newline='') as Master_List, open(output_filename + ".csv", "w+", newline="") as Child_List: # Set file handlers
+    with open(input_file, "r", newline='', encoding='utf-8') as Master_List, open(output_filename + ".csv", "w+", newline="", encoding='utf-8') as Child_List: # Set file handlers
         Master_Read = csv.reader(Master_List)  # Create read object
         Child_Write = csv.writer(Child_List)  # Create write object
 
