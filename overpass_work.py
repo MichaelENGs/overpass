@@ -1135,8 +1135,12 @@ class Salzarulo_Overpass_Query(object):
     Class to access the overpass api
 
     """
+    url_file = "overpass_url.txt"
+    with open(url_file,"r") as fp:
+        url = fp.read()
 
-    default_url = "http://overpass-api.de/api/interpreter"
+    default_url = url
+    #default_url = "http://overpass-api.de/api/interpreter"
 
     def __init__(self, read_chunk_size=4096, url=None):
         self.url = self.default_url
@@ -1309,7 +1313,7 @@ def Find_mid_points(query_result, csvobj, write=True):
         return
 
 
-def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549",output_filename="Default"):
+def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549",output_filename="Default",from_xml=False,result=None):
     """
     This is the method of generating an overpass file with a user defined extent. This function will query the overpass
     api. The results of the query will be parsed and a resulting csv file will be generated.
@@ -1317,19 +1321,20 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549",output_filename="Default
     :param extent: User defined lat and long in the form of: south west north east
     :return:
     """
+    if not from_xml:
+        print("Sending query to overpass ... ")  # Message to user
+        Qstring = """[out:xml][bbox:%s];
+        (
+          way[highway];
+          node[highway];
+        );
+        out body;
+        (._;>;);
+        out skel qt;""" % (extent)
+        api = Salzarulo_Overpass_Query()  # Generate an overpass query object
+        result = api.query(Qstring)  # Method to query api results in parsed data
+        print("Query successful")  # Message to user
 
-    print("Sending query to overpass ... ")  # Message to user
-    Qstring = """[out:xml][bbox:%s];
-    (
-      way[highway];
-      node[highway];
-    );
-    out body;
-    (._;>;);
-    out skel qt;""" % (extent)
-    api = Salzarulo_Overpass_Query()  # Generate an overpass query object
-    result = api.query(Qstring)  # Method to query api results in parsed data
-    print("Query successful")  # Message to user
     with open(output_filename+".csv", "w+", newline="") as csvfp:  # Open file with handeler
         print("Generating csv file ...")  # Message to user
         header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
@@ -1946,6 +1951,16 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     cell_cordinates = []
     cell_count = 0
     for input in sys.argv:
+        if input == "xml":
+            print("Generating data from xml file...")
+            find_index = sys.argv.index(input)+1
+            xml_file = sys.argv[find_index]
+            api = Salzarulo_Overpass_Query()
+            result = api.parse_xml(xml_file)
+            find_index +=1
+            output_filename = sys.argv[find_index]
+            PrimaryQ(None,output_filename,True,result=result)
+
         if "-h" == input:
             Helpfunc()
         if "--help" == input:
