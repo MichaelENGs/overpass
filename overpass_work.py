@@ -1341,7 +1341,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549",output_filename="Default
     print("File Generated in %s" % os.getcwd())  # Message to user
 
 
-def SecondQ(cell_list):
+def SecondQ(cell_list,filter_file,output_file):
     """
     Refined query, this function will break down the data into user defined cells and generate two output files.
     A file with a comprehensive list of the cells their ids and the corresponding ways along with the corresponding
@@ -1362,7 +1362,7 @@ def SecondQ(cell_list):
     inputs = [x[:-7] for x in os.listdir() if "_PQ.csv" in x]
     for query in inputs:
         more_loops = True
-        with open("Cell separated data.csv", "w+", newline="") as nfp:
+        with open(output_file+".csv", "w+", newline="") as nfp:
             writer = csv.writer(nfp)
             cell_id = 0  # initialize cell id
             node_id = 0  # initialize node id
@@ -1386,7 +1386,7 @@ def SecondQ(cell_list):
                 cell_data = cell + "_" + str(cell_id)
                 # open data
 
-                with open("Filtered results.csv", "r") as fp:
+                with open(filter_file, "r") as fp:
                     reader = csv.reader(fp)
                     # read data
                     for data in reader:
@@ -1946,8 +1946,10 @@ if __name__ == "__main__":  # The function calls in this section will be execute
                 print("Generating cell list from file")
                 cell_cordinates = Generate_cell_list(sys.argv[find_index])[1:]
                 find_index+=1
+                filter_file = sys.argv[find_index]
+                find_index+=1
                 output_filename = sys.argv[find_index]
-                multi = True
+                # multi = True
             else:
                 end_index = find_index + 5
                 cell_cordinates = [x for x in sys.argv[find_index:end_index]]
@@ -2027,7 +2029,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
 
     if cell_created:
         print("Preforming refined analysis...")
-        SecondQ(cell_cordinates)
+        SecondQ(cell_cordinates,filter_file,output_filename)
         with open("analysis_meta.txt", "a+") as fp:
             for cell in cell_cordinates:
                 fp.write("\n"+cell)
