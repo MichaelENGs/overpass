@@ -1309,7 +1309,7 @@ def Find_mid_points(query_result, csvobj, write=True):
         return
 
 
-def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
+def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549",output_filename="Default"):
     """
     This is the method of generating an overpass file with a user defined extent. This function will query the overpass
     api. The results of the query will be parsed and a resulting csv file will be generated.
@@ -1330,7 +1330,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     api = Salzarulo_Overpass_Query()  # Generate an overpass query object
     result = api.query(Qstring)  # Method to query api results in parsed data
     print("Query successful")  # Message to user
-    with open(output_filename+"_PQ.csv", "w+", newline="") as csvfp:  # Open file with handeler
+    with open(output_filename+".csv", "w+", newline="") as csvfp:  # Open file with handeler
         print("Generating csv file ...")  # Message to user
         header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
@@ -1663,7 +1663,7 @@ def Filter_csv(min_distance=0.05,multi_filter=True):
     if multi_filter:
         inputs = [x[:-7] for x in os.listdir() if "_PQ.csv" in x]
         for query in inputs:
-            with open(query+"_PQ.csv", "r", newline='') as Master_List, open("Filtered %s.csv" % query, "w+",newline="") as Child_List: # Set file handlers
+            with open(query+".csv", "r", newline='') as Master_List, open("Filtered %s.csv" % query, "w+",newline="") as Child_List: # Set file handlers
                 Master_Read = csv.reader(Master_List)  # Create read object
                 Child_Write = csv.writer(Child_List)  # Create write object
 
@@ -1975,12 +1975,15 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             if sys.argv[find_index][-4:] == ".csv":
                 print("Preforming multiple Overpass queries this may take a few minutes...")
                 extent_coordinates = Generate_cell_list(sys.argv[find_index])[1:]
+                extent_coordinates = ",".join(extent_coordinates[0].split())
                 find_index +=1
                 output_filename = sys.argv[find_index]
-                MultipleQ(extent_coordinates)
+                PrimaryQ(extent_coordinates,output_filename)
                 print("All queries generated.")
-                multi = True
-                continue
+                with open("analysis_meta.txt", "w+") as fp:
+                    fp.write(extent_coordinates)
+                # multi = True
+                # continue
             end_index = find_index + 5
             extent = [x for x in sys.argv[find_index:end_index]]
             extent = ",".join(extent)
