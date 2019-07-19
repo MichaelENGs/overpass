@@ -1451,7 +1451,6 @@ def SecondQ(cell_list):
                     return
 
 
-
 def Isincell(node, cell):
     """
     This function will organize the data in the cell and return a boolean value based on in the point falls in the cell.
@@ -1945,7 +1944,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             find_index = sys.argv.index(input) + 1
             if sys.argv[find_index][-4:] == ".csv":
                 print("Generating cell list from file")
-                cell_cordinates = Generate_cell_list(sys.argv[find_index])
+                cell_cordinates = Generate_cell_list(sys.argv[find_index])[1:]
                 find_index+=1
                 output_filename = sys.argv[find_index]
                 multi = True
@@ -1975,7 +1974,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             find_index = sys.argv.index(input) + 1
             if sys.argv[find_index][-4:] == ".csv":
                 print("Preforming multiple Overpass queries this may take a few minutes...")
-                extent_coordinates = Generate_cell_list(sys.argv[find_index])
+                extent_coordinates = Generate_cell_list(sys.argv[find_index])[1:]
                 find_index +=1
                 output_filename = sys.argv[find_index]
                 MultipleQ(extent_coordinates)
