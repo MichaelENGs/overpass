@@ -1163,7 +1163,7 @@ class Salzarulo_Overpass_Query(object):
             e = "Query error"
         else:
             content_type = f.getheader("Content-Type")
-            with open(output_filename+"_PQ.xml", "w+") as fp:
+            with open(output_filename+"_PQ.xml", "w+", encoding="utf-8") as fp:
                 fp.write(response.decode("utf-8"))
             return self.parse_xml(response)
 
@@ -1290,23 +1290,18 @@ def Find_mid_points(query_result, csvobj, write=True):
     :param write: Kwarg tells function to write to file, or not
     :return:
     """
-
-    way = query_result[0]  # Split topmost result
-    way_id = str(way.id)  # Store way id as string
-    if "name" not in way.tags.keys(): way.tags["name"] = "Not named"  # Check for name tag if none is present create one
-    road_name = way.tags["name"]  # Store road name
-    # mid_lat, mid_lon = Find_mid_lat_lon(way.nodes)  # Calculate midpoints of lat and lon
-    for node in way.nodes:
-        val_list = [way_id + " " + road_name, node.id, node.lat,
-                    node.lon]  # Store values in list with desired formatting
-        if write:
-            csvobj.writerow(val_list)  # Write list to csv file
-        else:
-            return val_list
-    if len(query_result) > 1:  # Check if there are more results
-        return Find_mid_points(query_result[1:], csvobj)
-    else:
-        return
+    for way in query_result:
+        way_id = str(way.id)
+        if "name" not in way.tags.keys(): way.tags["name"] = "Not named"  # Check for name tag if none is present create one
+        road_name = way.tags["name"]  # Store road name
+        # mid_lat, mid_lon = Find_mid_lat_lon(way.nodes)  # Calculate midpoints of lat and lon
+        for node in way.nodes:
+            val_list = [way_id + " " + road_name, node.id, node.lat,
+                        node.lon]  # Store values in list with desired formatting
+            if write:
+                csvobj.writerow(val_list)  # Write list to csv file
+            else:
+                return val_list
 
 
 def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
@@ -1330,7 +1325,7 @@ def PrimaryQ(extent="40.0853,-75.4005,40.1186,-75.3549"):
     api = Salzarulo_Overpass_Query()  # Generate an overpass query object
     result = api.query(Qstring)  # Method to query api results in parsed data
     print("Query successful")  # Message to user
-    with open(output_filename+"_PQ.csv", "w+", newline="") as csvfp:  # Open file with handeler
+    with open(output_filename+"_PQ.csv", "w+", newline="", encoding="utf-8") as csvfp:  # Open file with handeler
         print("Generating csv file ...")  # Message to user
         header = ["Road #/id", "Waypoint id (Node)", "Lat", "Lon"]  # Create header of file
         writer = csv.writer(csvfp)  # Create file writter object
@@ -1362,7 +1357,7 @@ def SecondQ(cell_list):
     inputs = [x[:-7] for x in os.listdir() if "_PQ.csv" in x]
     for query in inputs:
         more_loops = True
-        with open("Cell separated data.csv", "w+", newline="") as nfp:
+        with open("Cell separated data.csv", "w+", newline="", encoding="utf-8") as nfp:
             writer = csv.writer(nfp)
             cell_id = 0  # initialize cell id
             node_id = 0  # initialize node id
@@ -1386,7 +1381,7 @@ def SecondQ(cell_list):
                 cell_data = cell + "_" + str(cell_id)
                 # open data
 
-                with open("Filtered results.csv", "r") as fp:
+                with open("Filtered results.csv", "r", encoding="utf-8") as fp:
                     reader = csv.reader(fp)
                     # read data
                     for data in reader:
@@ -1648,7 +1643,7 @@ def Create_new_nodes_on_road(nodes_on_road, min_distance):
     return updated_nodes
 
 
-def Filter_csv(min_distance=0.05,multi_filter=True):
+def Filter_csv(min_distance, input_file, output_filename):
     """
     Loops over each road and creates waypoints min_distance from previous waypoint.
     The location of new way point is determined by using the original waypoints to move min_distance along the road.
@@ -1656,53 +1651,54 @@ def Filter_csv(min_distance=0.05,multi_filter=True):
 
     :param min_distance: minimum distance between waypoints on each road
     :type min_distance: float
+    :param input_file: filename containing all of the data points from the query
+    :type input_file: str
+    :param output_filename: name of the file to dump the output csv to
+    :type output_filename: str
     """
     print("Beginning filter process")  # Message to user
     if min_distance is None:  # Check if minimum distance is defined
         min_distance = float(input("Please specify minimum distance"))  # Prompt user for entry
 
-    if multi_filter:
-        inputs = [x[:-7] for x in os.listdir() if "_PQ.csv" in x]
-        for query in inputs:
-            with open(query+"_PQ.csv", "r", newline='') as Master_List, open("Filtered %s.csv" % query, "w+",newline="") as Child_List: # Set file handlers
-                Master_Read = csv.reader(Master_List)  # Create read object
-                Child_Write = csv.writer(Child_List)  # Create write object
+    with open(input_file, "r", newline='') as Master_List, open(output_filename + ".csv", "w+", newline="") as Child_List: # Set file handlers
+        Master_Read = csv.reader(Master_List)  # Create read object
+        Child_Write = csv.writer(Child_List)  # Create write object
 
-                row_num = 0
-                start_road_name = None  # Keeps track of the current road being evaluated
-                nodes_on_road = list()
-                global generated_node_num
-                for mdata in Master_Read:
-                    row_num += 1
-                    # If it is the first row in the file the print our the header row
-                    if row_num == 1:
-                        Header_write([mdata], Child_Write)
-                        continue
-                    if mdata == []:  # Check if anything was read
-                        continue  # Skip loop
+        row_num = 0
+        start_road_name = None  # Keeps track of the current road being evaluated
+        nodes_on_road = list()
+        global generated_node_num
+        for mdata in Master_Read:
+            row_num += 1
+            # If it is the first row in the file the print our the header row
+            if row_num == 1:
+                Header_write([mdata], Child_Write)
+                continue
+            if mdata == []:  # Check if anything was read
+                continue  # Skip loop
 
-                    if start_road_name is None:
-                        # Once a new road is found......
-                        # begin repopulating the list that stores all of the nodes on a single road
-                        nodes_on_road.append(mdata)
-                        # and then store the name of the road
-                        start_road_name = mdata[0]
-                        continue
-                    else:
-                        if not mdata[0] == start_road_name:
-                            # Perform calculations to determine distance between start and end
-                            # number of points that can fit and compute the actual points to a csv
-                            updated_points = Create_new_nodes_on_road(nodes_on_road, min_distance)
-                            Child_Write.writerows(updated_points)
-                            # Wipe out all of the nodes that were being evaluated on this road
-                            nodes_on_road.clear()
-                            # Begin storing nodes on this new road
-                            nodes_on_road.append(mdata)
-                            # We are about to begin evaluating a new road so updated road name
-                            start_road_name = mdata[0]
-                        else:
-                            # If we are evaluating a node on the current road, then add this node to the list
-                            nodes_on_road.append(mdata)
+            if start_road_name is None:
+                # Once a new road is found......
+                # begin repopulating the list that stores all of the nodes on a single road
+                nodes_on_road.append(mdata)
+                # and then store the name of the road
+                start_road_name = mdata[0]
+                continue
+            else:
+                if not mdata[0] == start_road_name:
+                    # Perform calculations to determine distance between start and end
+                    # number of points that can fit and compute the actual points to a csv
+                    updated_points = Create_new_nodes_on_road(nodes_on_road, min_distance)
+                    Child_Write.writerows(updated_points)
+                    # Wipe out all of the nodes that were being evaluated on this road
+                    nodes_on_road.clear()
+                    # Begin storing nodes on this new road
+                    nodes_on_road.append(mdata)
+                    # We are about to begin evaluating a new road so updated road name
+                    start_road_name = mdata[0]
+                else:
+                    # If we are evaluating a node on the current road, then add this node to the list
+                    nodes_on_road.append(mdata)
 
 
 def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],length_of_reader=None):
@@ -1995,6 +1991,12 @@ if __name__ == "__main__":  # The function calls in this section will be execute
         if "distance" == input:
             find_index = sys.argv.index(input) + 1
             distance = float(sys.argv[find_index])
+            # Get the next system argument which should be the input filename
+            find_index += 1
+            input_filename = sys.argv[find_index]
+            # Get the next system argument which should be the output filename
+            find_index += 1
+            output_filename = sys.argv[find_index]
             # print(distance)
             filter_data = True
 
@@ -2021,7 +2023,7 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     if filter_data:
         if "distance" not in dir():
             distance = 0.05
-        Filter_csv(min_distance=distance)
+        Filter_csv(min_distance=distance, input_file=input_filename, output_filename=output_filename)
 
     if cell_created:
         print("Preforming refined analysis...")
@@ -2032,8 +2034,6 @@ if __name__ == "__main__":  # The function calls in this section will be execute
 
     ##   These are some example program calls that have been configured
     #     overpass_work.py --help                                                  Show the help message
-    #     overpass_work.py query 40.0853,-75.4005,40.1186,-75.3549                 Initialize an overpass api query
-    #     overpass_work.py filter_                                                 Filter the data from the initial overpass api query and accept a user specified distance
-    #     overpass_work.py cell 40.08 -75.4 40.09 -75.38                           Run the refined query and analyze data inside defined cell
-    #     overpass_work.py cell 40.08 -75.4 40.09 -75.38 cell 50 -76 51 -76.5      Generate a list of cells to be analyzed\n\n
-    #     overpass_work.py cell present                                            Generate a kml for presentation
+    #     overpass_work.py query ./inputfile.csv outputfilename                    Initialize an overpass api query
+    #     overpass_work.py filter distance x inputfilename.csv outputfilename
+    #     overpass_work.py cell ./inputfile.csv
