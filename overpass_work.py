@@ -2012,13 +2012,14 @@ if __name__ == "__main__":  # The function calls in this section will be execute
                     fp.write(extent_coordinates)
                 # multi = True
                 # continue
-            end_index = find_index + 5
-            extent = [x for x in sys.argv[find_index:end_index]]
-            extent = ",".join(extent)
-            # print(extent)
-            with open("analysis_meta.txt","w+") as fp:
-                fp.write(extent)
-            PrimaryQ(extent)
+            else:
+                end_index = find_index + 5
+                extent = [x for x in sys.argv[find_index:end_index]]
+                extent = ",".join(extent)
+                # print(extent)
+                with open("analysis_meta.txt","w+") as fp:
+                    fp.write(extent)
+                PrimaryQ(extent)
 
         if "filter" == input:
             filter_data = True
@@ -2033,20 +2034,20 @@ if __name__ == "__main__":  # The function calls in this section will be execute
             Present()
             print("Kml files have been generated.")
 
-    if multi:
-        mode = "a"
-        if "analysis_meta" in os.listdir():
-            mode = "w+"
-        with open("analysis_meta.txt", mode) as fp:
-            if not cell_created:
-                fp.write("bboxs:\n")
-                for extent in extent_coordinates:
-                    fp.write(extent + "\n")
-
-            if cell_created:
-                fp.write("cells:\n")
-                for cell in cell_cordinates:
-                    fp.write(cell+"\n")
+    # if multi:
+    #     mode = "a"
+    #     if "analysis_meta" in os.listdir():
+    #         mode = "w+"
+    #     with open("analysis_meta.txt", mode) as fp:
+    #         if not cell_created:
+    #             fp.write("bboxs:\n")
+    #             for extent in extent_coordinates:
+    #                 fp.write(extent + "\n")
+    #
+    #         if cell_created:
+    #             fp.write("cells:\n")
+    #             for cell in cell_cordinates:
+    #                 fp.write(cell+"\n")
 
     if filter_data:
         if "distance" not in dir():
