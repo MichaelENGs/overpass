@@ -1357,12 +1357,13 @@ def SecondQ(cell_list=None,filter_file=None,output_file=None,from_file=None):
     output_index = 0
 
     if not from_file is None:
-        cell_list = Generate_cell_list(from_file)[1:]
+        cell_list = obtain_cells_from_file(from_file)
 
     with open("analysis_meta.txt","r") as fp:
         data = fp.read()
         bbox = data.split("\n")[0]
 
+    road_distance_output = list()
     more_loops = True
     with open(output_file+".csv", "w+", newline="", encoding="utf-8") as nfp:
         writer = csv.writer(nfp)
@@ -1447,18 +1448,15 @@ def SecondQ(cell_list=None,filter_file=None,output_file=None,from_file=None):
             with open(from_file, "r", newline="") as nnfp:
                 data = nnfp.readlines()
 
-            with open(from_file,"w",newline="") as nnfp:
-                if cell_id==0:
-                    data[cell_id] = data[cell_id][:-2] + ",road distance\n"
-                data[cell_id+1] = data[cell_id+1][:-2]+ ","+str(total_road_length)+"\n"
-                nnfp.writelines(data)
-                # cell_writer = csv.writer(nnfp)
-                # row_to_write = [cell_data, "total road length(km): %f" % total_road_length]
-                # cell_writer.writerow(row_to_write)
+            if cell_id == 0:
+                road_distance_output.append(data[cell_id][:-1] + ",road distance\n")
+            road_distance_output.append(data[cell_id+1][:-1]+ ","+str(total_road_length)+"\n")
+
             cell_id += 1  # Increment cell id
             if not more_loops:
                 return
-
+    with open(output_file + "_with_road_distance.csv", "w", newline="") as nnfp:
+        nnfp.writelines(road_distance_output)
 
 def Isincell(node, cell):
     """
@@ -1712,6 +1710,24 @@ def Filter_csv(min_distance, input_file, output_filename):
                 else:
                     # If we are evaluating a node on the current road, then add this node to the list
                     nodes_on_road.append(mdata)
+
+
+def obtain_cells_from_file(file):
+    """
+    Get all of the cells from the input file
+    :param file: input file containing cell definitions
+    :type file: str
+    :return: all cells specified in the file
+    :rtype: list
+    """
+    cells = list()
+    with open(file, 'r', encoding='utf-8') as f:
+        cell_data = csv.DictReader(f)
+        for row in cell_data:
+            lat_lon_info = [row['min lat'], row['min lon'], row['max lat'], row['max lon']]
+            cells.append(" ".join(lat_lon_info))
+
+    return cells
 
 
 def Generate_cell_list(cell_file=None,csvobj=None,cell_list=[],length_of_reader=None):
@@ -2066,4 +2082,4 @@ if __name__ == "__main__":  # The function calls in this section will be execute
     #     overpass_work.py --help                                                  Show the help message
     #     overpass_work.py query ./inputfile.csv outputfilename                    Initialize an overpass api query
     #     overpass_work.py filter distance x inputfilename.csv outputfilename
-    #     overpass_work.py cell ./inputfile.csv
+    #     overpass_work.py cell ./inputfile.csv filter_file.csv outputfilename
